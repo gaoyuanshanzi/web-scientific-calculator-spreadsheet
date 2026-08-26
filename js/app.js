@@ -1,9 +1,9 @@
 /**
- * Main Application Controller: Responsive Tabs, Touch Swipe, and Integration
+ * Main Application Controller: Responsive Tabs, Touch Swipe, and Initialization
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Components
+  // Initialize Independent Components
   window.calculatorInstance = new ScientificCalculator();
   window.spreadsheetInstance = new Spreadsheet(20, 20);
 
@@ -58,20 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const diffX = touchEndX - touchStartX;
     const diffY = touchEndY - touchStartY;
     
-    // Check if horizontal swipe is dominant and significant (> 60px)
+    // Horizontal swipe threshold
     if (Math.abs(diffX) > Math.abs(diffY) * 1.5 && Math.abs(diffX) > 60) {
       if (diffX < 0 && currentTab === 'calc') {
-        // Swiped Left -> Go to Spreadsheet
         switchTab('sheet');
       } else if (diffX > 0 && currentTab === 'sheet') {
-        // Swiped Right -> Go to Calculator
         switchTab('calc');
       }
     }
   }
-
-  // Load sample data by default on first run
-  setTimeout(() => {
-    window.spreadsheetInstance.loadSampleData();
-  }, 100);
 });

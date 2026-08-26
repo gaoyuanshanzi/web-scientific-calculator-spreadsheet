@@ -1,5 +1,9 @@
 /**
  * 20x20 Spreadsheet Grid & Excel-Compatible Formula Engine
+ * - Light Mode
+ * - Multi-Cell Block Selection (Shift + Click, Shift + Arrows, Mouse Drag)
+ * - Real-Time Dynamic Statistics (Selected Range or Entire Sheet)
+ * - Completely Decoupled from Calculator
  */
 
 class Spreadsheet {
@@ -12,8 +16,12 @@ class Spreadsheet {
     }
 
     this.data = {}; // key: "A1", value: { raw: string, val: any }
+    
+    // Selection state
     this.selectedCell = 'A1';
-    this.selectedRange = ['A1'];
+    this.rangeStart = { col: 0, row: 1 };
+    this.rangeEnd = { col: 0, row: 1 };
+    this.isSelecting = false;
     this.isEditing = false;
 
     // DOM Elements
@@ -27,7 +35,7 @@ class Spreadsheet {
 
     this.initGrid();
     this.initEvents();
-    this.recalculateAll();
+    this.updateRealtimeStats();
   }
 
   initGrid() {
@@ -47,28 +55,62 @@ class Spreadsheet {
       html += `<tr><th class="row-header" id="rowHeader_${r}">${r}</th>`;
       for (let c = 0; c < this.colsCount; c++) {
         const cellId = `${this.colHeaders[c]}${r}`;
-        html += `<td class="sheet-cell" id="cell_${cellId}" data-cell="${cellId}"></td>`;
+        html += `<td class="sheet-cell" id="cell_${cellId}" data-cell="${cellId}" data-col="${c}" data-row="${r}"></td>`;
       }
       html += '</tr>';
     }
 
     html += '</tbody></table>';
     this.gridWrapper.innerHTML = html;
-    this.selectCell('A1');
+    this.selectSingleCell('A1');
   }
 
   initEvents() {
     const table = document.getElementById('sheetTable');
     if (!table) return;
 
-    // Cell Click & Double Click
-    table.addEventListener('click', (e) => {
+    // Mouse Down on Cell
+    table.addEventListener('mousedown', (e) => {
       const td = e.target.closest('.sheet-cell');
-      if (td && !this.isEditing) {
-        this.selectCell(td.dataset.cell);
+      if (!td || this.isEditing) return;
+
+      const col = parseInt(td.dataset.col, 10);
+      const row = parseInt(td.dataset.row, 10);
+
+      if (e.shiftKey) {
+        // Shift + Click: Extend range from rangeStart to clicked cell
+        e.preventDefault();
+        this.rangeEnd = { col, row };
+        this.applyRangeSelection();
+      } else {
+        // Normal Click: Start new selection
+        this.isSelecting = true;
+        this.rangeStart = { col, row };
+        this.rangeEnd = { col, row };
+        this.selectSingleCell(td.dataset.cell);
       }
     });
 
+    // Mouse Move / Enter while dragging to select block
+    table.addEventListener('mouseover', (e) => {
+      if (!this.isSelecting || this.isEditing) return;
+      const td = e.target.closest('.sheet-cell');
+      if (td) {
+        const col = parseInt(td.dataset.col, 10);
+        const row = parseInt(td.dataset.row, 10);
+        this.rangeEnd = { col, row };
+        this.applyRangeSelection();
+      }
+    });
+
+    // Mouse Up anywhere to finish dragging
+    window.addEventListener('mouseup', () => {
+      if (this.isSelecting) {
+        this.isSelecting = false;
+      }
+    });
+
+    // Cell Double Click to Edit
     table.addEventListener('dblclick', (e) => {
       const td = e.target.closest('.sheet-cell');
       if (td) {
@@ -88,7 +130,7 @@ class Spreadsheet {
         if (e.key === 'Enter') {
           e.preventDefault();
           this.recalculateAll();
-          this.moveSelection(1, 0); // Move down on Enter
+          this.moveSelection(1, 0, false);
         } else if (e.key === 'Escape') {
           this.formulaInput.value = this.getCellRaw(this.selectedCell);
           this.recalculateAll();
@@ -96,50 +138,42 @@ class Spreadsheet {
       });
     }
 
-    // Keyboard Navigation for Sheet
+    // Keyboard Navigation & Range Selection (Shift + Arrows)
     window.addEventListener('keydown', (e) => {
-      // If typing inside an input other than formula bar, ignore
-      if (e.target.tagName === 'INPUT' && e.target !== this.formulaInput && !e.target.classList.contains('cell-editor')) {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) {
         return;
       }
-      
-      // If editing in-cell editor, let the editor handle it
       if (this.isEditing) return;
-
-      // When sheet panel is active or focused
       if (document.activeElement === this.formulaInput) return;
 
       const key = e.key;
+      const shift = e.shiftKey;
+
       if (key === 'ArrowUp') {
         e.preventDefault();
-        this.moveSelection(-1, 0);
+        this.moveSelection(-1, 0, shift);
       } else if (key === 'ArrowDown') {
         e.preventDefault();
-        this.moveSelection(1, 0);
+        this.moveSelection(1, 0, shift);
       } else if (key === 'ArrowLeft') {
         e.preventDefault();
-        this.moveSelection(0, -1);
+        this.moveSelection(0, -1, shift);
       } else if (key === 'ArrowRight') {
         e.preventDefault();
-        this.moveSelection(0, 1);
+        this.moveSelection(0, 1, shift);
       } else if (key === 'Tab') {
         e.preventDefault();
-        this.moveSelection(0, e.shiftKey ? -1 : 1);
+        this.moveSelection(0, shift ? -1 : 1, false);
       } else if (key === 'Enter') {
         e.preventDefault();
         this.startEdit(this.selectedCell);
       } else if (key === 'Delete' || key === 'Backspace') {
-        // Clear selected cell if not editing
-        this.setCellValue(this.selectedCell, '', true);
+        // Clear all cells in selected block
+        this.clearSelectedRange();
       }
     });
 
     // Toolbar Buttons
-    const btnPasteCalc = document.getElementById('btnPasteCalc');
-    if (btnPasteCalc) {
-      btnPasteCalc.addEventListener('click', () => this.pasteFromCalculator());
-    }
-
     const btnSampleData = document.getElementById('btnSampleData');
     if (btnSampleData) {
       btnSampleData.addEventListener('click', () => this.loadSampleData());
@@ -156,53 +190,139 @@ class Spreadsheet {
     }
   }
 
-  selectCell(cellId) {
-    if (this.isEditing) {
-      this.endEdit();
-    }
+  selectSingleCell(cellId) {
+    if (this.isEditing) this.endEdit();
 
-    // Remove previous highlights
-    document.querySelectorAll('.sheet-cell.is-selected').forEach(el => el.classList.remove('is-selected'));
-    document.querySelectorAll('.sheet-table th.header-active').forEach(el => el.classList.remove('header-active'));
+    this.clearSelectionStyles();
 
     this.selectedCell = cellId;
-    this.selectedRange = [cellId];
+    const colChar = cellId.charAt(0);
+    const rowNum = parseInt(cellId.slice(1), 10);
+    const colIdx = this.colHeaders.indexOf(colChar);
+
+    this.rangeStart = { col: colIdx, row: rowNum };
+    this.rangeEnd = { col: colIdx, row: rowNum };
 
     const td = document.getElementById(`cell_${cellId}`);
     if (td) {
       td.classList.add('is-selected');
-      // Scroll into view if supported
       if (typeof td.scrollIntoView === 'function') {
         td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
     }
 
-    // Highlight row and column headers
-    const col = cellId.charAt(0);
-    const row = cellId.slice(1);
-    const colHeader = document.getElementById(`colHeader_${col}`);
-    const rowHeader = document.getElementById(`rowHeader_${row}`);
-    if (colHeader) colHeader.classList.add('header-active');
-    if (rowHeader) rowHeader.classList.add('header-active');
+    // Highlight headers
+    this.highlightHeaders(colIdx, colIdx, rowNum, rowNum);
 
     // Update formula bar
     if (this.activeCellLabel) this.activeCellLabel.textContent = cellId;
     if (this.formulaInput) this.formulaInput.value = this.getCellRaw(cellId);
+
+    this.updateRealtimeStats();
   }
 
-  moveSelection(rowDelta, colDelta) {
-    if (!this.selectedCell) return;
-    const colChar = this.selectedCell.charAt(0);
-    const rowNum = parseInt(this.selectedCell.slice(1), 10);
+  applyRangeSelection() {
+    this.clearSelectionStyles();
 
-    let colIdx = this.colHeaders.indexOf(colChar) + colDelta;
-    let newRowNum = rowNum + rowDelta;
+    const minCol = Math.min(this.rangeStart.col, this.rangeEnd.col);
+    const maxCol = Math.max(this.rangeStart.col, this.rangeEnd.col);
+    const minRow = Math.min(this.rangeStart.row, this.rangeEnd.row);
+    const maxRow = Math.max(this.rangeStart.row, this.rangeEnd.row);
 
-    colIdx = Math.max(0, Math.min(this.colsCount - 1, colIdx));
-    newRowNum = Math.max(1, Math.min(this.rowsCount, newRowNum));
+    const anchorId = `${this.colHeaders[this.rangeStart.col]}${this.rangeStart.row}`;
+    this.selectedCell = anchorId;
 
-    const nextCell = `${this.colHeaders[colIdx]}${newRowNum}`;
-    this.selectCell(nextCell);
+    const isMulti = (minCol !== maxCol || minRow !== maxRow);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const id = `${this.colHeaders[c]}${r}`;
+        const td = document.getElementById(`cell_${id}`);
+        if (td) {
+          if (id === anchorId) {
+            td.classList.add('is-selected');
+          }
+          if (isMulti) {
+            td.classList.add('is-range-selected');
+            if (r === minRow) td.classList.add('is-range-top');
+            if (r === maxRow) td.classList.add('is-range-bottom');
+            if (c === minCol) td.classList.add('is-range-left');
+            if (c === maxCol) td.classList.add('is-range-right');
+          }
+        }
+      }
+    }
+
+    this.highlightHeaders(minCol, maxCol, minRow, maxRow);
+
+    // Update active label & formula input
+    if (this.activeCellLabel) {
+      if (isMulti) {
+        const startId = `${this.colHeaders[minCol]}${minRow}`;
+        const endId = `${this.colHeaders[maxCol]}${maxRow}`;
+        this.activeCellLabel.textContent = `${startId}:${endId}`;
+      } else {
+        this.activeCellLabel.textContent = anchorId;
+      }
+    }
+    if (this.formulaInput) {
+      this.formulaInput.value = this.getCellRaw(anchorId);
+    }
+
+    this.updateRealtimeStats();
+  }
+
+  clearSelectionStyles() {
+    document.querySelectorAll('.sheet-cell.is-selected, .sheet-cell.is-range-selected').forEach(el => {
+      el.classList.remove('is-selected', 'is-range-selected', 'is-range-top', 'is-range-bottom', 'is-range-left', 'is-range-right');
+    });
+    document.querySelectorAll('.sheet-table th.header-active').forEach(el => el.classList.remove('header-active'));
+  }
+
+  highlightHeaders(minCol, maxCol, minRow, maxRow) {
+    for (let c = minCol; c <= maxCol; c++) {
+      const el = document.getElementById(`colHeader_${this.colHeaders[c]}`);
+      if (el) el.classList.add('header-active');
+    }
+    for (let r = minRow; r <= maxRow; r++) {
+      const el = document.getElementById(`rowHeader_${r}`);
+      if (el) el.classList.add('header-active');
+    }
+  }
+
+  moveSelection(rowDelta, colDelta, isShift = false) {
+    if (isShift) {
+      // Expand / shrink rangeEnd
+      let nextCol = this.rangeEnd.col + colDelta;
+      let nextRow = this.rangeEnd.row + rowDelta;
+      nextCol = Math.max(0, Math.min(this.colsCount - 1, nextCol));
+      nextRow = Math.max(1, Math.min(this.rowsCount, nextRow));
+      this.rangeEnd = { col: nextCol, row: nextRow };
+      this.applyRangeSelection();
+    } else {
+      // Move single selection
+      let colIdx = this.rangeStart.col + colDelta;
+      let rowNum = this.rangeStart.row + rowDelta;
+      colIdx = Math.max(0, Math.min(this.colsCount - 1, colIdx));
+      rowNum = Math.max(1, Math.min(this.rowsCount, rowNum));
+      const nextCell = `${this.colHeaders[colIdx]}${rowNum}`;
+      this.selectSingleCell(nextCell);
+    }
+  }
+
+  clearSelectedRange() {
+    const minCol = Math.min(this.rangeStart.col, this.rangeEnd.col);
+    const maxCol = Math.max(this.rangeStart.col, this.rangeEnd.col);
+    const minRow = Math.min(this.rangeStart.row, this.rangeEnd.row);
+    const maxRow = Math.max(this.rangeStart.row, this.rangeEnd.row);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const id = `${this.colHeaders[c]}${r}`;
+        this.setCellValue(id, '', false);
+      }
+    }
+    this.recalculateAll();
   }
 
   startEdit(cellId) {
@@ -230,7 +350,7 @@ class Spreadsheet {
       td.classList.remove('is-editing');
       this.setCellValue(cellId, val, true);
       if (shouldMove) {
-        this.moveSelection(1, 0);
+        this.moveSelection(1, 0, false);
       }
     };
 
@@ -250,7 +370,7 @@ class Spreadsheet {
       } else if (e.key === 'Tab') {
         e.preventDefault();
         commit(false);
-        this.moveSelection(0, e.shiftKey ? -1 : 1);
+        this.moveSelection(0, e.shiftKey ? -1 : 1, false);
       }
     });
   }
@@ -288,10 +408,7 @@ class Spreadsheet {
   }
 
   recalculateAll() {
-    // Pass 1: Parse and evaluate all cells
     const visited = new Set();
-    const cellKeys = Object.keys(this.data);
-
     for (let r = 1; r <= this.rowsCount; r++) {
       for (let c = 0; c < this.colsCount; c++) {
         const cellId = `${this.colHeaders[c]}${r}`;
@@ -299,8 +416,6 @@ class Spreadsheet {
         this.renderCell(cellId);
       }
     }
-
-    // Update Real-Time Statistics
     this.updateRealtimeStats();
   }
 
@@ -313,7 +428,6 @@ class Spreadsheet {
 
     const raw = item.raw;
 
-    // If starts with '=' -> evaluate formula
     if (raw.startsWith('=')) {
       try {
         const formula = raw.slice(1);
@@ -322,7 +436,6 @@ class Spreadsheet {
         item.val = '#ERROR!';
       }
     } else {
-      // Check if numeric
       const num = Number(raw);
       if (!isNaN(num) && raw !== '') {
         item.val = num;
@@ -346,7 +459,6 @@ class Spreadsheet {
       td.textContent = val;
       td.classList.add('is-error');
     } else if (typeof val === 'number') {
-      // Format number nicely
       const formatted = Number.isInteger(val) ? val.toLocaleString() : (Math.abs(val) < 0.0001 && val !== 0 ? val.toExponential(4) : parseFloat(val.toFixed(4)).toLocaleString());
       td.textContent = formatted;
       td.classList.remove('is-error', 'text-left');
@@ -357,12 +469,9 @@ class Spreadsheet {
     }
   }
 
-  /**
-   * Excel Formula Evaluator
-   */
   evaluateFormula(expr, currentCell, callStack = new Set()) {
     if (callStack.has(currentCell)) {
-      return '#REF!'; // Circular reference
+      return '#REF!';
     }
     const nextStack = new Set(callStack);
     nextStack.add(currentCell);
@@ -375,7 +484,7 @@ class Spreadsheet {
       return this.computeFormulaFunction(fn, values);
     });
 
-    // 2. Expand List Functions: SUM(A1, B2, 10), AVERAGE(...)
+    // 2. Expand List Functions: SUM(A1, B2, 10), etc.
     parsed = parsed.replace(/\b([A-Z_]+)\s*\(([^()]+)\)/g, (match, fn, argsStr) => {
       const argTokens = argsStr.split(',').map(s => s.trim());
       const values = [];
@@ -391,7 +500,7 @@ class Spreadsheet {
       return this.computeFormulaFunction(fn, values);
     });
 
-    // 3. Replace single cell references (e.g. A1, B2) with their evaluated values
+    // 3. Replace single cell references (e.g. A1, B2)
     parsed = parsed.replace(/\b([A-T]\d+)\b/g, (match, refCell) => {
       const v = this.resolveCellRef(refCell, nextStack);
       if (typeof v === 'string' && v.startsWith('#')) throw new Error(v);
@@ -400,7 +509,6 @@ class Spreadsheet {
 
     // 4. Safe evaluate arithmetic expression
     try {
-      // Replace power operator
       parsed = parsed.replace(/\^/g, '**');
       // eslint-disable-next-line no-new-func
       const result = Function(`"use strict"; return (${parsed});`)();
@@ -444,8 +552,7 @@ class Spreadsheet {
 
   computeFormulaFunction(fn, values) {
     if (!values || values.length === 0) {
-      if (fn === 'COUNT') return 0;
-      if (fn === 'SUM') return 0;
+      if (fn === 'COUNT' || fn === 'SUM') return 0;
       return 0;
     }
 
@@ -484,20 +591,52 @@ class Spreadsheet {
   }
 
   /**
-   * Real-time Statistics Calculation (Sum, Average, Count of all numeric cells in 20x20)
+   * Real-time Statistics Calculation:
+   * - If a multi-cell block is selected: calculates for that selection range!
+   * - If 1 cell is selected: calculates for all populated numbers in the entire 20x20 sheet!
    */
   updateRealtimeStats() {
     let sum = 0;
     let count = 0;
 
-    for (let r = 1; r <= this.rowsCount; r++) {
-      for (let c = 0; c < this.colsCount; c++) {
-        const cellId = `${this.colHeaders[c]}${r}`;
-        const item = this.data[cellId];
-        if (item && typeof item.val === 'number' && !isNaN(item.val) && isFinite(item.val)) {
-          sum += item.val;
-          count++;
+    const minCol = Math.min(this.rangeStart.col, this.rangeEnd.col);
+    const maxCol = Math.max(this.rangeStart.col, this.rangeEnd.col);
+    const minRow = Math.min(this.rangeStart.row, this.rangeEnd.row);
+    const maxRow = Math.max(this.rangeStart.row, this.rangeEnd.row);
+
+    const isMultiSelection = (minCol !== maxCol || minRow !== maxRow);
+
+    if (isMultiSelection) {
+      // Calculate stats for the selected block
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          const cellId = `${this.colHeaders[c]}${r}`;
+          const item = this.data[cellId];
+          if (item && typeof item.val === 'number' && !isNaN(item.val) && isFinite(item.val)) {
+            sum += item.val;
+            count++;
+          }
         }
+      }
+      if (this.statModeTag) {
+        const startId = `${this.colHeaders[minCol]}${minRow}`;
+        const endId = `${this.colHeaders[maxCol]}${maxRow}`;
+        this.statModeTag.textContent = `🎯 선택 영역 [${startId}:${endId}] 통계`;
+      }
+    } else {
+      // Calculate stats for entire sheet
+      for (let r = 1; r <= this.rowsCount; r++) {
+        for (let c = 0; c < this.colsCount; c++) {
+          const cellId = `${this.colHeaders[c]}${r}`;
+          const item = this.data[cellId];
+          if (item && typeof item.val === 'number' && !isNaN(item.val) && isFinite(item.val)) {
+            sum += item.val;
+            count++;
+          }
+        }
+      }
+      if (this.statModeTag) {
+        this.statModeTag.textContent = `⚡ 전체 20×20 바둑판 통계`;
       }
     }
 
@@ -514,17 +653,9 @@ class Spreadsheet {
     }
   }
 
-  pasteFromCalculator() {
-    if (!this.selectedCell) return;
-    const calcVal = window.calculatorInstance?.displayVal || '0';
-    this.setCellValue(this.selectedCell, calcVal, true);
-    this.showToast(`셀 [${this.selectedCell}]에 계산기 값 (${calcVal}) 입력 완료`);
-  }
-
   loadSampleData() {
     this.clearSheet();
 
-    // Fill sample engineering & sales data
     this.setCellValue('A1', '항목', false);
     this.setCellValue('B1', '수량', false);
     this.setCellValue('C1', '단가', false);
@@ -553,8 +684,8 @@ class Spreadsheet {
     this.setCellValue('C10', '=AVERAGE(C2:C7)', false);
 
     this.recalculateAll();
-    this.selectCell('A1');
-    this.showToast('샘플 공학/견적 데이터가 로드되었습니다.');
+    this.selectSingleCell('A1');
+    this.showToast('예제 데이터가 로드되었습니다.');
   }
 
   clearSheet() {

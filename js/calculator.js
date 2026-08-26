@@ -373,9 +373,6 @@ class ScientificCalculator {
       this.displayVal = this.formatResult(result);
       this.expression = '';
       this.justCalculated = true;
-
-      // Dispatch event for external tools (e.g. spreadsheet)
-      window.dispatchEvent(new CustomEvent('calc:result', { detail: { value: result, formatted: this.displayVal } }));
     } catch (e) {
       this.historyVal = this.expression;
       this.displayVal = 'Error';
