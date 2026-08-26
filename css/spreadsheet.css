@@ -228,9 +228,17 @@
   background: #ffffff;
   color: #0f172a;
   font-family: var(--font-sans);
-  font-size: 0.86rem;
-  padding: 2px 6px;
+  font-size: 0.9rem;
+  padding: 0 4px;
   outline: none;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+}
+
+@media (max-width: 860px) {
+  .cell-editor, .formula-input {
+    font-size: 16px !important; /* Prevents iOS auto-zoom on input focus */
+  }
 }
 
 .sheet-cell.is-error {

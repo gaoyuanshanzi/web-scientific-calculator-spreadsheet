@@ -1,6 +1,7 @@
 /**
  * 20x20 Spreadsheet Grid & Excel-Compatible Formula Engine
  * - Light Mode
+ * - Immediate In-Cell Editing & Mobile Virtual Keyboard Popup on Tap
  * - Multi-Cell Block Selection (Shift + Click, Shift + Arrows, Mouse Drag)
  * - Real-Time Dynamic Statistics (Selected Range or Entire Sheet)
  * - Completely Decoupled from Calculator
@@ -17,12 +18,13 @@ class Spreadsheet {
 
     this.data = {}; // key: "A1", value: { raw: string, val: any }
     
-    // Selection state
+    // Selection & Edit State
     this.selectedCell = 'A1';
     this.rangeStart = { col: 0, row: 1 };
     this.rangeEnd = { col: 0, row: 1 };
     this.isSelecting = false;
     this.isEditing = false;
+    this.editingCellId = null;
 
     // DOM Elements
     this.gridWrapper = document.getElementById('sheetGridWrapper');
@@ -62,64 +64,74 @@ class Spreadsheet {
 
     html += '</tbody></table>';
     this.gridWrapper.innerHTML = html;
-    this.selectSingleCell('A1');
+    this.selectSingleCell('A1', false);
   }
 
   initEvents() {
     const table = document.getElementById('sheetTable');
     if (!table) return;
 
-    // Mouse Down on Cell
-    table.addEventListener('mousedown', (e) => {
+    // Cell Click / Touch Handler (Immediate focus for mobile virtual keyboard)
+    table.addEventListener('click', (e) => {
+      if (window.setActivePanel) window.setActivePanel('sheet');
+
       const td = e.target.closest('.sheet-cell');
-      if (!td || this.isEditing) return;
+      if (!td) return;
 
       const col = parseInt(td.dataset.col, 10);
       const row = parseInt(td.dataset.row, 10);
+      const cellId = td.dataset.cell;
 
       if (e.shiftKey) {
-        // Shift + Click: Extend range from rangeStart to clicked cell
-        e.preventDefault();
+        // Shift + Click: Block Range Selection
+        if (this.isEditing) this.endEdit();
         this.rangeEnd = { col, row };
         this.applyRangeSelection();
       } else {
-        // Normal Click: Start new selection
-        this.isSelecting = true;
+        // Single Click / Tap: Select and open in-cell editor immediately
         this.rangeStart = { col, row };
         this.rangeEnd = { col, row };
-        this.selectSingleCell(td.dataset.cell);
+        this.selectSingleCell(cellId, true);
       }
     });
 
-    // Mouse Move / Enter while dragging to select block
+    // Mouse Drag Selection (Desktop)
+    table.addEventListener('mousedown', (e) => {
+      if (e.shiftKey) return;
+      const td = e.target.closest('.sheet-cell');
+      if (!td || e.target.classList.contains('cell-editor')) return;
+
+      const col = parseInt(td.dataset.col, 10);
+      const row = parseInt(td.dataset.row, 10);
+      this.isSelecting = true;
+      this.rangeStart = { col, row };
+      this.rangeEnd = { col, row };
+    });
+
     table.addEventListener('mouseover', (e) => {
-      if (!this.isSelecting || this.isEditing) return;
+      if (!this.isSelecting) return;
       const td = e.target.closest('.sheet-cell');
       if (td) {
         const col = parseInt(td.dataset.col, 10);
         const row = parseInt(td.dataset.row, 10);
         this.rangeEnd = { col, row };
+        if (this.isEditing) this.endEdit();
         this.applyRangeSelection();
       }
     });
 
-    // Mouse Up anywhere to finish dragging
     window.addEventListener('mouseup', () => {
       if (this.isSelecting) {
         this.isSelecting = false;
       }
     });
 
-    // Cell Double Click to Edit
-    table.addEventListener('dblclick', (e) => {
-      const td = e.target.closest('.sheet-cell');
-      if (td) {
-        this.startEdit(td.dataset.cell);
-      }
-    });
-
     // Formula Input Synchronization
     if (this.formulaInput) {
+      this.formulaInput.addEventListener('focus', () => {
+        if (window.setActivePanel) window.setActivePanel('sheet');
+      });
+
       this.formulaInput.addEventListener('input', (e) => {
         if (this.selectedCell) {
           this.setCellValue(this.selectedCell, e.target.value, false);
@@ -148,10 +160,9 @@ class Spreadsheet {
 
     // Keyboard Navigation & Range Selection (Shift + Arrows) & Direct Typing
     window.addEventListener('keydown', (e) => {
-      // ONLY process if spreadsheet panel is currently active!
       if (window.activePanel !== 'sheet') return;
 
-      // If user is currently typing in the top formula input, let the input handle it
+      // If formula input is focused, let it handle
       if (document.activeElement === this.formulaInput) return;
 
       // If currently editing inside a cell, let the editor handle it
@@ -182,7 +193,7 @@ class Spreadsheet {
         e.preventDefault();
         this.clearSelectedRange();
       } else if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // Direct Typing: Start editing immediately with the pressed key!
+        // Direct typing: Start editing immediately
         e.preventDefault();
         this.startEdit(this.selectedCell, key);
       }
@@ -205,8 +216,10 @@ class Spreadsheet {
     }
   }
 
-  selectSingleCell(cellId) {
-    if (this.isEditing) this.endEdit();
+  selectSingleCell(cellId, autoStartEdit = false) {
+    if (this.isEditing && this.editingCellId !== cellId) {
+      this.endEdit();
+    }
 
     this.clearSelectionStyles();
 
@@ -234,6 +247,11 @@ class Spreadsheet {
     if (this.formulaInput) this.formulaInput.value = this.getCellRaw(cellId);
 
     this.updateRealtimeStats();
+
+    // On mobile / user tap, immediately start in-cell edit so on-screen keyboard pops up
+    if (autoStartEdit) {
+      this.startEdit(cellId);
+    }
   }
 
   applyRangeSelection() {
@@ -307,7 +325,6 @@ class Spreadsheet {
 
   moveSelection(rowDelta, colDelta, isShift = false) {
     if (isShift) {
-      // Expand / shrink rangeEnd
       let nextCol = this.rangeEnd.col + colDelta;
       let nextRow = this.rangeEnd.row + rowDelta;
       nextCol = Math.max(0, Math.min(this.colsCount - 1, nextCol));
@@ -315,13 +332,12 @@ class Spreadsheet {
       this.rangeEnd = { col: nextCol, row: nextRow };
       this.applyRangeSelection();
     } else {
-      // Move single selection
       let colIdx = this.rangeStart.col + colDelta;
       let rowNum = this.rangeStart.row + rowDelta;
       colIdx = Math.max(0, Math.min(this.colsCount - 1, colIdx));
       rowNum = Math.max(1, Math.min(this.rowsCount, rowNum));
       const nextCell = `${this.colHeaders[colIdx]}${rowNum}`;
-      this.selectSingleCell(nextCell);
+      this.selectSingleCell(nextCell, false);
     }
   }
 
@@ -341,29 +357,50 @@ class Spreadsheet {
   }
 
   startEdit(cellId, initialChar = null) {
-    if (this.isEditing) return;
+    if (this.isEditing && this.editingCellId === cellId) return;
+    if (this.isEditing) {
+      this.endEdit();
+    }
+
     const td = document.getElementById(`cell_${cellId}`);
     if (!td) return;
 
     this.isEditing = true;
+    this.editingCellId = cellId;
     td.classList.add('is-editing');
 
     const curRaw = initialChar !== null ? initialChar : this.getCellRaw(cellId);
     const editor = document.createElement('input');
     editor.type = 'text';
+    editor.inputMode = 'text'; // Brings up mobile software keyboard
+    editor.autocapitalize = 'off';
+    editor.autocomplete = 'off';
+    editor.autocorrect = 'off';
+    editor.spellcheck = false;
     editor.className = 'cell-editor';
     editor.value = curRaw;
 
     td.innerHTML = '';
     td.appendChild(editor);
+
+    // Focus editor immediately
     editor.focus();
     if (initialChar === null) {
       editor.select();
     }
 
+    // Keep formula bar in sync while typing
+    editor.addEventListener('input', (e) => {
+      this.setCellValue(cellId, e.target.value, false);
+      if (this.formulaInput) {
+        this.formulaInput.value = e.target.value;
+      }
+    });
+
     const commit = (shouldMove = false) => {
       const val = editor.value;
       this.isEditing = false;
+      this.editingCellId = null;
       td.classList.remove('is-editing');
       this.setCellValue(cellId, val, true);
       if (shouldMove) {
@@ -372,7 +409,9 @@ class Spreadsheet {
     };
 
     editor.addEventListener('blur', () => {
-      if (this.isEditing) commit(false);
+      if (this.isEditing && this.editingCellId === cellId) {
+        commit(false);
+      }
     });
 
     editor.addEventListener('keydown', (e) => {
@@ -382,6 +421,7 @@ class Spreadsheet {
       } else if (e.key === 'Escape') {
         e.preventDefault();
         this.isEditing = false;
+        this.editingCellId = null;
         td.classList.remove('is-editing');
         this.renderCell(cellId);
       } else if (e.key === 'Tab') {
@@ -393,14 +433,24 @@ class Spreadsheet {
   }
 
   endEdit() {
+    if (!this.isEditing) return;
     this.isEditing = false;
+    const editingId = this.editingCellId;
+    this.editingCellId = null;
+
     document.querySelectorAll('.cell-editor').forEach(ed => {
       const td = ed.closest('.sheet-cell');
       if (td) {
         const cellId = td.dataset.cell;
-        this.setCellValue(cellId, ed.value, false);
+        const val = ed.value;
+        td.classList.remove('is-editing');
+        this.setCellValue(cellId, val, true);
       }
     });
+
+    if (editingId) {
+      this.renderCell(editingId);
+    }
   }
 
   getCellRaw(cellId) {
@@ -624,7 +674,6 @@ class Spreadsheet {
     const isMultiSelection = (minCol !== maxCol || minRow !== maxRow);
 
     if (isMultiSelection) {
-      // Calculate stats for the selected block
       for (let r = minRow; r <= maxRow; r++) {
         for (let c = minCol; c <= maxCol; c++) {
           const cellId = `${this.colHeaders[c]}${r}`;
@@ -641,7 +690,6 @@ class Spreadsheet {
         this.statModeTag.textContent = `🎯 선택 영역 [${startId}:${endId}] 통계`;
       }
     } else {
-      // Calculate stats for entire sheet
       for (let r = 1; r <= this.rowsCount; r++) {
         for (let c = 0; c < this.colsCount; c++) {
           const cellId = `${this.colHeaders[c]}${r}`;
@@ -701,7 +749,7 @@ class Spreadsheet {
     this.setCellValue('C10', '=AVERAGE(C2:C7)', false);
 
     this.recalculateAll();
-    this.selectSingleCell('A1');
+    this.selectSingleCell('A1', false);
     this.showToast('예제 데이터가 로드되었습니다.');
   }
 
