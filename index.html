@@ -24,7 +24,7 @@
     </div>
 
     <div class="header-actions">
-      <span class="keyboard-hint">⌨️ PC 키보드 입력 지원</span>
+      <span class="keyboard-hint">💡 각 영역을 클릭하여 활성화 후 키보드 입력</span>
       <button class="header-btn" onclick="window.calculatorInstance.showInfo()" title="사용 안내">
         <span>ℹ️</span> 도움말
       </button>
@@ -48,12 +48,12 @@
   <main class="main-container tab-calc" id="mainContainer">
 
     <!-- LEFT PANEL: Scientific Engineering Calculator -->
-    <section class="panel calculator-panel" aria-label="공학용 계산기">
+    <section class="panel calculator-panel is-active" id="calcPanel" aria-label="공학용 계산기" tabindex="0">
       <div class="panel-header">
         <span class="panel-title">
           <span>📟</span> 공학용 계산기
         </span>
-        <span class="panel-badge">Casio Style</span>
+        <span class="panel-status-badge" id="calcBadge">🟢 활성화됨</span>
       </div>
 
       <!-- Calculator Physical Body -->
@@ -278,12 +278,12 @@
     </section>
 
     <!-- RIGHT PANEL: 20x20 Spreadsheet -->
-    <section class="panel spreadsheet-panel" aria-label="20x20 스프레드시트">
+    <section class="panel spreadsheet-panel" id="sheetPanel" aria-label="20x20 스프레드시트" tabindex="0">
       <div class="panel-header">
         <span class="panel-title">
           <span>📊</span> 20×20 스프레드시트 (A~T, 1~20)
         </span>
-        <span class="panel-badge">Excel 호환 수식 지원</span>
+        <span class="panel-status-badge" id="sheetBadge">클릭하여 활성화</span>
       </div>
 
       <div class="sheet-container">
@@ -344,7 +344,7 @@
           </div>
 
           <div class="stats-mode-tag" id="statModeTag">
-            <span>⚡ 실시간 20×20 바둑판 집계 중</span>
+            <span>⚡ 전체 20×20 바둑판 통계</span>
           </div>
         </div>
       </div>

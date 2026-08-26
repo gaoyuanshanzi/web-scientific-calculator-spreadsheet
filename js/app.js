@@ -1,11 +1,37 @@
 /**
- * Main Application Controller: Responsive Tabs, Touch Swipe, and Initialization
+ * Main Application Controller: Responsive Tabs, Focus Management, and Touch Swipe
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Independent Components
+  // Global Active Panel State ('calc' or 'sheet')
+  window.activePanel = 'calc';
+
+  const calcPanel = document.getElementById('calcPanel');
+  const sheetPanel = document.getElementById('sheetPanel');
+  const calcBadge = document.getElementById('calcBadge');
+  const sheetBadge = document.getElementById('sheetBadge');
+
+  window.setActivePanel = function(panel) {
+    window.activePanel = panel;
+    if (panel === 'calc') {
+      if (calcPanel) calcPanel.classList.add('is-active');
+      if (sheetPanel) sheetPanel.classList.remove('is-active');
+      if (calcBadge) calcBadge.textContent = '🟢 활성화됨';
+      if (sheetBadge) sheetBadge.textContent = '클릭하여 활성화';
+    } else {
+      if (sheetPanel) sheetPanel.classList.add('is-active');
+      if (calcPanel) calcPanel.classList.remove('is-active');
+      if (sheetBadge) sheetBadge.textContent = '🟢 활성화됨';
+      if (calcBadge) calcBadge.textContent = '클릭하여 활성화';
+    }
+  };
+
+  // Initialize Components
   window.calculatorInstance = new ScientificCalculator();
   window.spreadsheetInstance = new Spreadsheet(20, 20);
+
+  // Set initial active state
+  window.setActivePanel('calc');
 
   // Mobile Tab Elements
   const tabCalc = document.getElementById('tabCalc');
@@ -13,10 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const slidingBar = document.getElementById('tabSlidingBar');
   const mainContainer = document.getElementById('mainContainer');
 
-  let currentTab = 'calc'; // 'calc' or 'sheet'
+  let currentTab = 'calc';
 
   function switchTab(target) {
     currentTab = target;
+    window.setActivePanel(target);
+
     if (target === 'calc') {
       tabCalc.classList.add('active');
       tabSheet.classList.remove('active');
@@ -58,7 +86,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const diffX = touchEndX - touchStartX;
     const diffY = touchEndY - touchStartY;
     
-    // Horizontal swipe threshold
     if (Math.abs(diffX) > Math.abs(diffY) * 1.5 && Math.abs(diffX) > 60) {
       if (diffX < 0 && currentTab === 'calc') {
         switchTab('sheet');

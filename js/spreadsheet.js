@@ -138,13 +138,24 @@ class Spreadsheet {
       });
     }
 
-    // Keyboard Navigation & Range Selection (Shift + Arrows)
+    // Activate spreadsheet panel on click
+    const sheetPanel = document.getElementById('sheetPanel');
+    if (sheetPanel) {
+      sheetPanel.addEventListener('mousedown', () => {
+        if (window.setActivePanel) window.setActivePanel('sheet');
+      });
+    }
+
+    // Keyboard Navigation & Range Selection (Shift + Arrows) & Direct Typing
     window.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) {
-        return;
-      }
-      if (this.isEditing) return;
+      // ONLY process if spreadsheet panel is currently active!
+      if (window.activePanel !== 'sheet') return;
+
+      // If user is currently typing in the top formula input, let the input handle it
       if (document.activeElement === this.formulaInput) return;
+
+      // If currently editing inside a cell, let the editor handle it
+      if (this.isEditing) return;
 
       const key = e.key;
       const shift = e.shiftKey;
@@ -168,8 +179,12 @@ class Spreadsheet {
         e.preventDefault();
         this.startEdit(this.selectedCell);
       } else if (key === 'Delete' || key === 'Backspace') {
-        // Clear all cells in selected block
+        e.preventDefault();
         this.clearSelectedRange();
+      } else if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Direct Typing: Start editing immediately with the pressed key!
+        e.preventDefault();
+        this.startEdit(this.selectedCell, key);
       }
     });
 
@@ -325,7 +340,7 @@ class Spreadsheet {
     this.recalculateAll();
   }
 
-  startEdit(cellId) {
+  startEdit(cellId, initialChar = null) {
     if (this.isEditing) return;
     const td = document.getElementById(`cell_${cellId}`);
     if (!td) return;
@@ -333,7 +348,7 @@ class Spreadsheet {
     this.isEditing = true;
     td.classList.add('is-editing');
 
-    const curRaw = this.getCellRaw(cellId);
+    const curRaw = initialChar !== null ? initialChar : this.getCellRaw(cellId);
     const editor = document.createElement('input');
     editor.type = 'text';
     editor.className = 'cell-editor';
@@ -342,7 +357,9 @@ class Spreadsheet {
     td.innerHTML = '';
     td.appendChild(editor);
     editor.focus();
-    editor.select();
+    if (initialChar === null) {
+      editor.select();
+    }
 
     const commit = (shouldMove = false) => {
       const val = editor.value;

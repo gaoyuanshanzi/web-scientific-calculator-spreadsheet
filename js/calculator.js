@@ -37,6 +37,7 @@ class ScientificCalculator {
     // Calculator button clicks
     document.querySelectorAll('.calc-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        if (window.setActivePanel) window.setActivePanel('calc');
         const action = this.isShift ? (btn.dataset.shiftAction || btn.dataset.action) : btn.dataset.action;
         const val = this.isShift ? (btn.dataset.shiftVal || btn.dataset.val) : btn.dataset.val;
         this.handleButtonAction(action, val, btn);
@@ -48,9 +49,20 @@ class ScientificCalculator {
       });
     });
 
+    // Clicking anywhere on calculator panel activates it
+    const calcPanel = document.getElementById('calcPanel');
+    if (calcPanel) {
+      calcPanel.addEventListener('mousedown', () => {
+        if (window.setActivePanel) window.setActivePanel('calc');
+      });
+    }
+
     // Physical Keyboard Listener
     window.addEventListener('keydown', (e) => {
-      // Do not capture if typing in an input element (like spreadsheet formula bar or cell editor)
+      // ONLY process if calculator panel is currently active!
+      if (window.activePanel !== 'calc') return;
+
+      // Do not capture if typing in an input element
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) {
         return;
       }
