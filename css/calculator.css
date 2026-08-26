@@ -1,0 +1,332 @@
+/* Engineering Calculator - Casio / Sharp Style */
+
+.calc-casing {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(145deg, #5c6068, #45484f);
+  border-radius: 24px;
+  padding: 16px 14px 20px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    inset 0 2px 3px rgba(255, 255, 255, 0.2),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.5);
+  border: 1px solid #36393f;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  user-select: none;
+}
+
+/* Solar panel or top brand line */
+.calc-brand-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px 2px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #a0a6b5;
+  letter-spacing: 1px;
+}
+
+.calc-solar {
+  width: 70px;
+  height: 14px;
+  background: linear-gradient(90deg, #1c1514, #3a2825, #1c1514);
+  border-radius: 3px;
+  border: 1px solid #1a1a1a;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
+}
+
+/* LCD Display */
+.calc-screen-bezel {
+  background: #25282d;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 
+    inset 0 3px 6px rgba(0,0,0,0.7),
+    0 1px 2px rgba(255,255,255,0.1);
+  border: 1px solid #1c1e22;
+}
+
+.calc-lcd {
+  background: #9db28f;
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 84px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  color: #172414;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle LCD grid texture */
+.calc-lcd::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.03) 0px,
+    rgba(0, 0, 0, 0.03) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+}
+
+/* Indicators line */
+.lcd-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  min-height: 14px;
+  color: rgba(23, 36, 20, 0.4);
+}
+
+.indicator-item {
+  transition: all 0.15s ease;
+}
+
+.indicator-item.active {
+  color: #121c10;
+  font-weight: 900;
+  text-shadow: 0 0 1px rgba(0,0,0,0.4);
+}
+
+.indicator-item.shift-active {
+  color: #0e170c;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+/* Expression subtext */
+.lcd-expression {
+  font-size: 0.85rem;
+  min-height: 18px;
+  text-align: right;
+  color: rgba(23, 36, 20, 0.75);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  word-break: break-all;
+}
+
+.lcd-expression::-webkit-scrollbar {
+  display: none;
+}
+
+/* Main Display Value with scientific notation */
+.lcd-main-display {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 38px;
+}
+
+.lcd-number {
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: #121c10;
+  text-shadow: 1px 1px 0 rgba(255,255,255,0.2);
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lcd-number::-webkit-scrollbar {
+  display: none;
+}
+
+.lcd-exp-group {
+  display: none;
+  align-items: flex-start;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  gap: 1px;
+}
+
+.lcd-exp-group.visible {
+  display: flex;
+}
+
+.lcd-exp-val {
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+/* Keypad Section */
+.calc-keypad {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Function Rows (6 columns) */
+.key-row-6 {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+/* Number Rows (5 columns) */
+.key-row-5 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+/* Key Slot with Secondary (Yellow) Label */
+.key-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.sub-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #eab308; /* Yellow text as in image */
+  min-height: 12px;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sub-label.blue-label {
+  color: #60a5fa;
+}
+
+/* Base Calculator Button */
+.calc-btn {
+  width: 100%;
+  height: 38px;
+  border-radius: 6px;
+  border: none;
+  background: linear-gradient(180deg, #4f535a 0%, #34373d 100%);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 3px 0 #202226,
+    0 4px 6px rgba(0, 0, 0, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.15s ease;
+  position: relative;
+  outline: none;
+}
+
+.calc-btn:active, .calc-btn.pressed {
+  transform: translateY(2px);
+  box-shadow: 
+    0 1px 0 #202226,
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Button Variants */
+/* SHIFT Button (Distinct Yellow) */
+.btn-shift {
+  background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+  color: #1a1608;
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: 
+    0 3px 0 #92400e,
+    0 4px 6px rgba(0,0,0,0.4),
+    inset 0 1px 1px rgba(255,255,255,0.4);
+}
+.btn-shift.active {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: 0 0 12px #fbbf24, inset 0 1px 2px rgba(0,0,0,0.3);
+  transform: translateY(1px);
+}
+
+/* Function buttons (hyp, sin, cos, tan, ln, log, y^x, sqrt, x^2, %, (, )) */
+.btn-func {
+  background: linear-gradient(180deg, #44474e 0%, #2f3238 100%);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* Memory Buttons with Blue Text */
+.btn-mem {
+  color: #93c5fd;
+  font-weight: 700;
+}
+
+/* Number Buttons (7, 8, 9, 4, 5, 6, 1, 2, 3, 0) */
+.btn-num {
+  height: 44px;
+  background: linear-gradient(180deg, #595d66 0%, #3e4249 100%);
+  font-size: 1.35rem;
+  font-weight: 500;
+}
+
+/* Action: DEL (Coral / Orange Red) */
+.btn-del {
+  height: 44px;
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 
+    0 3px 0 #7f1d1d,
+    0 4px 6px rgba(0,0,0,0.4),
+    inset 0 1px 1px rgba(255,255,255,0.3);
+}
+
+/* Action: AC (Bright Red) */
+.btn-ac {
+  height: 44px;
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.05rem;
+  box-shadow: 
+    0 3px 0 #7f1d1d,
+    0 4px 6px rgba(0,0,0,0.4),
+    inset 0 1px 1px rgba(255,255,255,0.3);
+}
+
+/* Operators (+, -, *, /) */
+.btn-op {
+  height: 44px;
+  background: linear-gradient(180deg, #444850 0%, #2e3137 100%);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+/* Equals Button (=) */
+.btn-equals {
+  height: 44px;
+  background: linear-gradient(180deg, #4c515a 0%, #31353c 100%);
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+/* EXP, +/-, . buttons */
+.btn-util {
+  height: 44px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}

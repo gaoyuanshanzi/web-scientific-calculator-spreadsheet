@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>웹 공학용 계산기 & 20x20 스프레드시트</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/calculator.css">
+  <link rel="stylesheet" href="css/spreadsheet.css">
+</head>
+<body>
+
+  <!-- Top App Navigation Header -->
+  <header class="app-header">
+    <div class="logo-area">
+      <div class="logo-icon">∑</div>
+      <div>
+        <h1 class="app-title">Web Scientific Calc & Sheet</h1>
+        <span class="app-subtitle">공학용 계산기 &amp; 20×20 스프레드시트</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <span class="keyboard-hint">⌨️ PC 키보드 입력 지원</span>
+      <button class="header-btn" onclick="window.calculatorInstance.showInfo()" title="사용 안내">
+        <span>ℹ️</span> 도움말
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Tab Switcher with Animated Sliding Bar (< 860px) -->
+  <nav class="mobile-tabs-container">
+    <div class="mobile-tabs">
+      <button class="tab-btn active" id="tabCalc">
+        <span>📟</span> 공학용 계산기
+      </button>
+      <button class="tab-btn" id="tabSheet">
+        <span>📊</span> 스프레드시트
+      </button>
+    </div>
+    <div class="tab-sliding-bar" id="tabSlidingBar"></div>
+  </nav>
+
+  <!-- Main Container: Desktop Dual-Panel (Left: Calc, Right: Sheet) -->
+  <main class="main-container tab-calc" id="mainContainer">
+
+    <!-- LEFT PANEL: Scientific Engineering Calculator -->
+    <section class="panel calculator-panel" aria-label="공학용 계산기">
+      <div class="panel-header">
+        <span class="panel-title">
+          <span>📟</span> 공학용 계산기
+        </span>
+        <span class="panel-badge">Casio Style</span>
+      </div>
+
+      <!-- Calculator Physical Body -->
+      <div class="calc-casing">
+        <div class="calc-brand-bar">
+          <span>SCIENTIFIC CALCULATOR</span>
+          <div class="calc-solar" title="Solar Cell"></div>
+        </div>
+
+        <!-- LCD Screen Area -->
+        <div class="calc-screen-bezel">
+          <div class="calc-lcd">
+            <!-- Top Status Indicators (DEG, RAD, GRAD, SHIFT, HYP, M) -->
+            <div class="lcd-indicators">
+              <span class="indicator-item active" id="indDeg">DEG</span>
+              <span class="indicator-item" id="indRad">RAD</span>
+              <span class="indicator-item" id="indGrad">GRAD</span>
+              <span class="indicator-item" id="indShift">SHIFT</span>
+              <span class="indicator-item" id="indHyp">HYP</span>
+              <span class="indicator-item" id="indMem">M</span>
+            </div>
+
+            <!-- Formula / Upper Expression Line -->
+            <div class="lcd-expression" id="lcdExpression"></div>
+
+            <!-- Main Large Number & Exponent Output -->
+            <div class="lcd-main-display">
+              <div class="lcd-number" id="lcdNumber">0</div>
+              <div class="lcd-exp-group" id="lcdExpGroup">
+                <span>×10</span>
+                <span class="lcd-exp-val" id="lcdExpVal">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Keypad Grid (Matching Reference Image) -->
+        <div class="calc-keypad">
+
+          <!-- Row 1: SHIFT + Top Control / Memory Row (6 Columns) -->
+          <div class="key-row-6">
+            <div class="key-slot">
+              <span class="sub-label">···</span>
+              <button class="calc-btn btn-shift" id="btnShift" data-action="shift" title="Shift Toggle">SHIFT</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">DRG▶</span>
+              <button class="calc-btn btn-func" data-action="drg" data-shift-action="drg_conv" title="Angle Mode">DRG</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">TAB</span>
+              <button class="calc-btn btn-func" data-action="fse" title="FSE Display Mode">FSE</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label blue-label">RCL</span>
+              <button class="calc-btn btn-func btn-mem" data-action="mr" data-shift-action="mc" title="Memory Recall / Clear">MR</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label blue-label">STO</span>
+              <button class="calc-btn btn-func btn-mem" data-action="ms" title="Memory Store">MS</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label blue-label">M−</span>
+              <button class="calc-btn btn-func btn-mem" data-action="m_plus" data-shift-action="m_minus" title="Memory Plus / Minus">M+</button>
+            </div>
+          </div>
+
+          <!-- Row 2: Hyperbolic & Trigonometric & Log (6 Columns) -->
+          <div class="key-row-6">
+            <div class="key-slot">
+              <span class="sub-label">hyp⁻¹</span>
+              <button class="calc-btn btn-func" data-action="hyp" title="Hyperbolic">hyp</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">sin⁻¹</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="sin" data-shift-action="func" data-shift-val="asin">sin</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">cos⁻¹</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="cos" data-shift-action="func" data-shift-val="acos">cos</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">tan⁻¹</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="tan" data-shift-action="func" data-shift-val="atan">tan</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">eˣ</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="ln" data-shift-action="func" data-shift-val="exp">ln</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">10ˣ</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="log" data-shift-action="func" data-shift-val="pow10">log</button>
+            </div>
+          </div>
+
+          <!-- Row 3: Power, Roots, Sqr, Percent, Parentheses (6 Columns) -->
+          <div class="key-row-6">
+            <div class="key-slot">
+              <span class="sub-label">ˣ√y</span>
+              <button class="calc-btn btn-func" data-action="op" data-val="^" data-shift-action="func" data-shift-val="root">yˣ</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">³√</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="sqrt" data-shift-action="func" data-shift-val="cbrt">√</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">x³</span>
+              <button class="calc-btn btn-func" data-action="func" data-val="sqr" data-shift-action="func" data-shift-val="cube">x²</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">1/x</span>
+              <button class="calc-btn btn-func" data-action="op" data-val="%" data-shift-action="func" data-shift-val="recip">%</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-func" data-action="num" data-val="(">(</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-func" data-action="num" data-val=")">)</button>
+            </div>
+          </div>
+
+          <!-- Row 4: 7, 8, 9, DEL, AC (5 Columns) -->
+          <div class="key-row-5">
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-num" data-action="num" data-val="7">7</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-num" data-action="num" data-val="8">8</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-num" data-action="num" data-val="9">9</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-del" data-action="del" title="한 글자 삭제 (Backspace)">DEL</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-ac" data-action="ac" title="전체 삭제 (Esc)">AC</button>
+            </div>
+          </div>
+
+          <!-- Row 5: 4, 5, 6, ×, ÷ (5 Columns) -->
+          <div class="key-row-5">
+            <div class="key-slot">
+              <span class="sub-label">n!</span>
+              <button class="calc-btn btn-num" data-action="num" data-val="4" data-shift-action="func" data-shift-val="fact">4</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">nCr</span>
+              <button class="calc-btn btn-num" data-action="num" data-val="5" data-shift-action="op" data-shift-val="nCr">5</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">nPr</span>
+              <button class="calc-btn btn-num" data-action="num" data-val="6" data-shift-action="op" data-shift-val="nPr">6</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">DEC</span>
+              <button class="calc-btn btn-op" data-action="op" data-val="×" data-shift-action="base" data-shift-val="DEC">×</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">HEX</span>
+              <button class="calc-btn btn-op" data-action="op" data-val="÷" data-shift-action="base" data-shift-val="HEX">÷</button>
+            </div>
+          </div>
+
+          <!-- Row 6: 1, 2, 3, +, − (5 Columns) -->
+          <div class="key-row-5">
+            <div class="key-slot">
+              <span class="sub-label">π</span>
+              <button class="calc-btn btn-num" data-action="num" data-val="1" data-shift-action="const" data-shift-val="pi">1</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">e</span>
+              <button class="calc-btn btn-num" data-action="num" data-val="2" data-shift-action="const" data-shift-val="e">2</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-num" data-action="num" data-val="3">3</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">OCT</span>
+              <button class="calc-btn btn-op" data-action="op" data-val="+" data-shift-action="base" data-shift-val="OCT">+</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">BIN</span>
+              <button class="calc-btn btn-op" data-action="op" data-val="−" data-shift-action="base" data-shift-val="BIN">−</button>
+            </div>
+          </div>
+
+          <!-- Row 7: 0, ±, ., EXP, = (5 Columns) -->
+          <div class="key-row-5">
+            <div class="key-slot">
+              <span class="sub-label">CONV</span>
+              <button class="calc-btn btn-num" data-action="num" data-val="0" data-shift-action="drg_conv">0</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">CNST</span>
+              <button class="calc-btn btn-util" data-action="negate" data-shift-action="const" data-shift-val="pi">±</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label"></span>
+              <button class="calc-btn btn-util" data-action="num" data-val=".">.</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">MOD</span>
+              <button class="calc-btn btn-util" data-action="op" data-val="EXP" data-shift-action="op" data-shift-val="MOD">EXP</button>
+            </div>
+            <div class="key-slot">
+              <span class="sub-label">ANS</span>
+              <button class="calc-btn btn-equals" data-action="equals" data-shift-action="ans">=</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: 20x20 Spreadsheet -->
+    <section class="panel spreadsheet-panel" aria-label="20x20 스프레드시트">
+      <div class="panel-header">
+        <span class="panel-title">
+          <span>📊</span> 20×20 스프레드시트 (A~T, 1~20)
+        </span>
+        <span class="panel-badge">Excel 호환 수식 지원</span>
+      </div>
+
+      <div class="sheet-container">
+        <!-- Toolbar Actions -->
+        <div class="sheet-toolbar">
+          <button class="tool-btn btn-primary" id="btnPasteCalc" title="계산기의 계산 결과를 현재 선택된 셀에 넣습니다">
+            <span>📥</span> 계산기 값 입력
+          </button>
+          <button class="tool-btn" id="btnSampleData" title="실제 공학 및 비용 예제 데이터를 불러옵니다">
+            <span>📋</span> 예제 데이터
+          </button>
+          <button class="tool-btn" id="btnClearSheet" title="모든 셀의 내용을 비웁니다">
+            <span>🧹</span> 초기화
+          </button>
+          <button class="tool-btn" id="btnExportCSV" title="현재 시트를 CSV 파일로 다운로드합니다">
+            <span>💾</span> CSV 내보내기
+          </button>
+        </div>
+
+        <!-- Formula Bar -->
+        <div class="formula-bar-container">
+          <div class="active-cell-box" id="activeCellBox">A1</div>
+          <span class="fx-label">fx</span>
+          <input type="text" class="formula-input" id="formulaInput" placeholder="값 또는 엑셀 수식 입력 (예: =SUM(A1:A5), =B2*1.1, =AVERAGE(C1:C10))">
+        </div>
+
+        <!-- 20x20 Grid -->
+        <div class="sheet-grid-wrapper" id="sheetGridWrapper">
+          <!-- Table dynamically generated by spreadsheet.js -->
+        </div>
+
+        <!-- Real-Time Statistics Bar (합, 평균, 갯수 실시간 표시) -->
+        <div class="sheet-stats-bar">
+          <div class="stats-group">
+            <!-- SUM Metric -->
+            <div class="stat-item">
+              <div class="stat-icon sum-icon">∑</div>
+              <div class="stat-text">
+                <span class="stat-label">합계 (SUM)</span>
+                <span class="stat-value" id="statSum">0</span>
+              </div>
+            </div>
+
+            <!-- AVERAGE Metric -->
+            <div class="stat-item">
+              <div class="stat-icon avg-icon">x̄</div>
+              <div class="stat-text">
+                <span class="stat-label">평균 (AVG)</span>
+                <span class="stat-value" id="statAvg">0</span>
+              </div>
+            </div>
+
+            <!-- COUNT Metric -->
+            <div class="stat-item">
+              <div class="stat-icon cnt-icon">#</div>
+              <div class="stat-text">
+                <span class="stat-label">숫자 개수 (COUNT)</span>
+                <span class="stat-value" id="statCount">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats-mode-tag" id="statModeTag">
+            <span>⚡ 실시간 20×20 바둑판 집계 중</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast Message Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="js/calculator.js"></script>
+  <script src="js/spreadsheet.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
