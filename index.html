@@ -276,24 +276,20 @@
         </div>
       </div>
 
-      <!-- Calculation Result & History Card (Copyable) -->
+      <!-- Calculation Result Card (Copyable - Single Latest Result Only) -->
       <div class="calc-history-card">
         <div class="calc-history-header">
-          <span class="calc-history-title">📋 계산 결과 및 수식 (복사 가능)</span>
-          <button class="copy-btn" id="btnCopyLatest" title="최근 연산 결과 클립보드 복사">
+          <span class="calc-history-title">📋 계산 결과 (복사 가능)</span>
+          <button class="copy-btn" id="btnCopyLatest" title="계산 결과 클립보드 복사">
             <span>📋</span> 결과 복사
           </button>
         </div>
         
         <div class="calc-latest-box">
-          <div class="latest-label">최근 연산 수식 및 결과:</div>
+          <div class="latest-label">방금 계산한 수식 및 결과:</div>
           <div class="latest-content selectable-text" id="latestResultText" title="드래그하여 직접 복사하거나 [결과 복사] 버튼을 누르세요">
-            수식을 계산하면 여기에 복사 가능한 결과가 표시됩니다.
+            수식을 계산하면 여기에 결과가 표시됩니다.
           </div>
-        </div>
-
-        <div class="calc-history-list" id="calcHistoryList">
-          <!-- Populated dynamically by calculator.js -->
         </div>
       </div>
     </section>

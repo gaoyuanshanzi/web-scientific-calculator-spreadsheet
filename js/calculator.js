@@ -437,36 +437,6 @@ class ScientificCalculator {
     if (this.elLatestResultText) {
       this.elLatestResultText.textContent = fullText;
     }
-    this.historyList.unshift({ expr, result, fullText, time: new Date().toLocaleTimeString() });
-    if (this.historyList.length > 8) {
-      this.historyList.pop();
-    }
-    this.renderHistoryList();
-  }
-
-  renderHistoryList() {
-    if (!this.elCalcHistoryList) return;
-    if (this.historyList.length <= 1) {
-      this.elCalcHistoryList.innerHTML = '';
-      return;
-    }
-    let html = '';
-    for (let i = 1; i < this.historyList.length; i++) {
-      const item = this.historyList[i];
-      html += `
-        <div class="history-item">
-          <span class="history-text selectable-text" title="드래그하여 복사">${item.expr} = <span class="history-res">${item.result}</span></span>
-          <button class="history-copy-btn" data-copy="${item.fullText.replace(/"/g, '&quot;')}" title="복사">📋</button>
-        </div>
-      `;
-    }
-    this.elCalcHistoryList.innerHTML = html;
-    this.elCalcHistoryList.querySelectorAll('.history-copy-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.copyToClipboard(btn.dataset.copy);
-      });
-    });
   }
 
   copyToClipboard(text) {
