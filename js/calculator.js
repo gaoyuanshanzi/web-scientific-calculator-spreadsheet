@@ -146,6 +146,9 @@ class ScientificCalculator {
       case 'ans':
         this.appendInput('ANS');
         break;
+      case 'percent':
+        this.insertPercent();
+        break;
       case 'func':
         this.insertFunction(val);
         break;
@@ -187,7 +190,7 @@ class ScientificCalculator {
     } else if (key === '^') {
       this.insertOperator('^');
     } else if (key === '%') {
-      this.insertOperator('%');
+      this.insertPercent();
     } else if (key === 'Enter' || key === '=') {
       this.calculate();
     } else if (key === 'Backspace') {
@@ -297,6 +300,21 @@ class ScientificCalculator {
       return;
     }
     this.appendInput(` ${op} `);
+  }
+
+  insertPercent() {
+    if (this.justCalculated) {
+      this.expression = this.displayVal;
+      this.justCalculated = false;
+    }
+    if (!this.expression) {
+      if (this.displayVal && this.displayVal !== '0' && this.displayVal !== 'Error') {
+        this.expression = this.displayVal;
+      } else {
+        return;
+      }
+    }
+    this.appendInput('%');
   }
 
   insertFunction(func) {
@@ -431,6 +449,11 @@ class ScientificCalculator {
     s = s.replace(/(\d+(?:\.\d+)?)\s*nCr\s*(\d+(?:\.\d+)?)/g, (_, n, r) => this.mathCombination(Number(n), Number(r)));
     s = s.replace(/(\d+(?:\.\d+)?)\s*nPr\s*(\d+(?:\.\d+)?)/g, (_, n, r) => this.mathPermutation(Number(n), Number(r)));
     s = s.replace(/(\d+(?:\.\d+)?)\s*MOD\s*(\d+(?:\.\d+)?)/gi, '($1 % $2)');
+
+    // Handle percentage (e.g. 200 + 10% -> 220, 100 - 20% -> 80, 50% -> 0.5, 200 * 15% -> 30)
+    s = s.replace(/(\d+(?:\.\d+)?)\s*([+\-])\s*(\d+(?:\.\d+)?)%/g, '($1 $2 (($1) * ($3) / 100))');
+    s = s.replace(/(\d+(?:\.\d+)?|\([^\)]+\))\s*%/g, '(($1) / 100)');
+    s = s.replace(/%/g, ' / 100 ');
 
     // Handle factorials (e.g. 5!)
     s = s.replace(/(\d+)!/g, (_, n) => this.mathFactorial(Number(n)));
