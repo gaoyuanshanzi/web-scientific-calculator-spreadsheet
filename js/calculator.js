@@ -15,6 +15,8 @@ class ScientificCalculator {
     this.fseMode = 'NORM';      // NORM, FIX, SCI
     this.baseMode = 'DEC';      // DEC, HEX, OCT, BIN
     this.justCalculated = false;
+    this.historyList = [];
+    this.latestCalculationText = '';
 
     // DOM Elements
     this.elLcdNumber = document.getElementById('lcdNumber');
@@ -28,6 +30,9 @@ class ScientificCalculator {
     this.elIndHyp = document.getElementById('indHyp');
     this.elIndMem = document.getElementById('indMem');
     this.elBtnShift = document.getElementById('btnShift');
+    this.elLatestResultText = document.getElementById('latestResultText');
+    this.elCalcHistoryList = document.getElementById('calcHistoryList');
+    this.elBtnCopyLatest = document.getElementById('btnCopyLatest');
 
     this.initEvents();
     this.updateDisplay();
@@ -68,6 +73,19 @@ class ScientificCalculator {
       }
       this.handleKeyboard(e);
     });
+
+    // Copy latest calculation button
+    if (this.elBtnCopyLatest) {
+      this.elBtnCopyLatest.addEventListener('click', () => {
+        if (this.latestCalculationText) {
+          this.copyToClipboard(this.latestCalculationText);
+        } else if (this.displayVal && this.displayVal !== '0') {
+          this.copyToClipboard(this.displayVal);
+        } else {
+          this.showToast('복사할 계산 결과가 없습니다.');
+        }
+      });
+    }
   }
 
   handleButtonAction(action, val, btnEl) {
@@ -396,6 +414,7 @@ class ScientificCalculator {
 
   calculate() {
     if (!this.expression) return;
+    const exprString = this.expression;
     try {
       const result = this.parseExpression(this.expression);
       this.historyVal = this.expression + ' =';
@@ -403,12 +422,81 @@ class ScientificCalculator {
       this.displayVal = this.formatResult(result);
       this.expression = '';
       this.justCalculated = true;
+      this.addCalculationHistory(exprString, this.displayVal);
     } catch (e) {
       this.historyVal = this.expression;
       this.displayVal = 'Error';
       this.justCalculated = true;
     }
     this.updateDisplay();
+  }
+
+  addCalculationHistory(expr, result) {
+    const fullText = `${expr} = ${result}`;
+    this.latestCalculationText = fullText;
+    if (this.elLatestResultText) {
+      this.elLatestResultText.textContent = fullText;
+    }
+    this.historyList.unshift({ expr, result, fullText, time: new Date().toLocaleTimeString() });
+    if (this.historyList.length > 8) {
+      this.historyList.pop();
+    }
+    this.renderHistoryList();
+  }
+
+  renderHistoryList() {
+    if (!this.elCalcHistoryList) return;
+    if (this.historyList.length <= 1) {
+      this.elCalcHistoryList.innerHTML = '';
+      return;
+    }
+    let html = '';
+    for (let i = 1; i < this.historyList.length; i++) {
+      const item = this.historyList[i];
+      html += `
+        <div class="history-item">
+          <span class="history-text selectable-text" title="드래그하여 복사">${item.expr} = <span class="history-res">${item.result}</span></span>
+          <button class="history-copy-btn" data-copy="${item.fullText.replace(/"/g, '&quot;')}" title="복사">📋</button>
+        </div>
+      `;
+    }
+    this.elCalcHistoryList.innerHTML = html;
+    this.elCalcHistoryList.querySelectorAll('.history-copy-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.copyToClipboard(btn.dataset.copy);
+      });
+    });
+  }
+
+  copyToClipboard(text) {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.showToast(`복사 완료: ${text}`);
+      }).catch(() => {
+        this.fallbackCopy(text);
+      });
+    } else {
+      this.fallbackCopy(text);
+    }
+  }
+
+  fallbackCopy(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      this.showToast(`복사 완료: ${text}`);
+    } catch (err) {
+      this.showToast(`복사 실패: 수동으로 드래그해 복사하세요`);
+    }
+    document.body.removeChild(ta);
   }
 
   formatResult(val) {

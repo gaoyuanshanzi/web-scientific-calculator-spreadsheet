@@ -7,7 +7,7 @@
   border-radius: 24px;
   padding: 16px 14px 20px;
   box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.6),
+    0 20px 40px rgba(0, 0, 0, 0.45),
     inset 0 2px 3px rgba(255, 255, 255, 0.2),
     inset 0 -3px 5px rgba(0, 0, 0, 0.5);
   border: 1px solid #36393f;
@@ -199,7 +199,7 @@
 .sub-label {
   font-size: 0.65rem;
   font-weight: 700;
-  color: #eab308; /* Yellow text as in image */
+  color: #eab308;
   min-height: 12px;
   line-height: 1;
   text-shadow: 0 1px 2px rgba(0,0,0,0.8);
@@ -244,7 +244,6 @@
 }
 
 /* Button Variants */
-/* SHIFT Button (Distinct Yellow) */
 .btn-shift {
   background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
   color: #1a1608;
@@ -261,20 +260,17 @@
   transform: translateY(1px);
 }
 
-/* Function buttons (hyp, sin, cos, tan, ln, log, y^x, sqrt, x^2, %, (, )) */
 .btn-func {
   background: linear-gradient(180deg, #44474e 0%, #2f3238 100%);
   font-size: 0.88rem;
   font-weight: 600;
 }
 
-/* Memory Buttons with Blue Text */
 .btn-mem {
   color: #93c5fd;
   font-weight: 700;
 }
 
-/* Number Buttons (7, 8, 9, 4, 5, 6, 1, 2, 3, 0) */
 .btn-num {
   height: 44px;
   background: linear-gradient(180deg, #595d66 0%, #3e4249 100%);
@@ -282,7 +278,6 @@
   font-weight: 500;
 }
 
-/* Action: DEL (Coral / Orange Red) */
 .btn-del {
   height: 44px;
   background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
@@ -295,7 +290,6 @@
     inset 0 1px 1px rgba(255,255,255,0.3);
 }
 
-/* Action: AC (Bright Red) */
 .btn-ac {
   height: 44px;
   background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
@@ -308,7 +302,6 @@
     inset 0 1px 1px rgba(255,255,255,0.3);
 }
 
-/* Operators (+, -, *, /) */
 .btn-op {
   height: 44px;
   background: linear-gradient(180deg, #444850 0%, #2e3137 100%);
@@ -316,7 +309,6 @@
   font-weight: 600;
 }
 
-/* Equals Button (=) */
 .btn-equals {
   height: 44px;
   background: linear-gradient(180deg, #4c515a 0%, #31353c 100%);
@@ -324,9 +316,150 @@
   font-weight: 700;
 }
 
-/* EXP, +/-, . buttons */
 .btn-util {
   height: 44px;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+/* =========================================
+   Calculation Result & History Card (Copyable)
+   ========================================= */
+.calc-history-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 14px;
+  margin-top: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.calc-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calc-history-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+  background: #e0f2fe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.calc-latest-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.latest-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.selectable-text {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  cursor: text;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.calc-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  transition: background 0.15s;
+}
+
+.history-item:hover {
+  background: #f1f5f9;
+}
+
+.history-text {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  cursor: text;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.history-res {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.history-copy-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #64748b;
+  margin-left: 6px;
+}
+
+.history-copy-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
