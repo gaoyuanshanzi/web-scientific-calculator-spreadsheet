@@ -203,13 +203,32 @@ class Spreadsheet {
       });
 
       this.formulaInput.addEventListener('keydown', (e) => {
+        if (['+', '-', '*', '/', '^', '(', ')', ',', ':'].includes(e.key)) {
+          this.pickingState = null;
+          this.pointCell = null;
+          this.clearFormulaRefHighlights();
+        }
+
         if (e.key === 'Enter') {
           e.preventDefault();
+          this.pickingState = null;
+          this.pointCell = null;
+          this.clearFormulaRefHighlights();
+          this.formulaInput.blur();
           this.recalculateAll();
           this.moveSelection(1, 0, false);
         } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.pickingState = null;
+          this.pointCell = null;
+          this.clearFormulaRefHighlights();
           this.formulaInput.value = this.getCellRaw(this.selectedCell);
           this.recalculateAll();
+          this.formulaInput.blur();
+          // Move focus & cursor to the active cell
+          if (this.selectedCell) {
+            this.selectSingleCell(this.selectedCell, true);
+          }
         }
       });
     }
