@@ -304,20 +304,72 @@
       </div>
 
       <div class="sheet-container">
-        <!-- Toolbar Actions -->
-        <div class="sheet-toolbar">
-          <button class="tool-btn" id="btnFillDown" title="선택한 영역의 첫 행 내용을 아래로 채웁니다 (단축키: Ctrl + D)">
-            <span>⬇️</span> 아래로 채우기 (Ctrl+D)
-          </button>
-          <button class="tool-btn" id="btnSampleData" title="공학 및 통계 예제 데이터를 불러옵니다">
-            <span>📋</span> 예제 데이터
-          </button>
-          <button class="tool-btn" id="btnClearSheet" title="모든 셀의 내용을 비웁니다">
-            <span>🧹</span> 초기화
-          </button>
-          <button class="tool-btn" id="btnExportCSV" title="현재 시트를 CSV 파일로 다운로드합니다">
-            <span>💾</span> CSV 내보내기
-          </button>
+        <!-- Excel Ribbon Menu -->
+        <div class="sheet-ribbon" id="sheetRibbon">
+          <!-- Group 1: Font & Style -->
+          <div class="ribbon-group" title="글꼴 서식">
+            <select id="ribbonFontSize" class="ribbon-select" title="글꼴 크기">
+              <option value="11px">11</option>
+              <option value="12px">12</option>
+              <option value="13px" selected>13</option>
+              <option value="14px">14</option>
+              <option value="16px">16</option>
+              <option value="18px">18</option>
+              <option value="20px">20</option>
+            </select>
+            <div class="ribbon-btn-group">
+              <button class="ribbon-btn" id="btnBold" title="굵게 (Ctrl+B)"><b>B</b></button>
+              <button class="ribbon-btn" id="btnItalic" title="기울임꼴 (Ctrl+I)"><i>I</i></button>
+              <button class="ribbon-btn" id="btnUnderline" title="밑줄 (Ctrl+U)"><u>U</u></button>
+            </div>
+          </div>
+
+          <div class="ribbon-divider"></div>
+
+          <!-- Group 2: Alignment -->
+          <div class="ribbon-group" title="텍스트 정렬">
+            <div class="ribbon-btn-group">
+              <button class="ribbon-btn" id="btnAlignLeft" title="왼쪽 정렬">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18v2H3V4zm0 5h12v2H3V9zm0 5h18v2H3v-2zm0 5h12v2H3v-2z"/></svg>
+              </button>
+              <button class="ribbon-btn" id="btnAlignCenter" title="가운데 정렬">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18v2H3V4zm3 5h12v2H6V9zm-3 5h18v2H3v-2zm3 5h12v2H6v-2z"/></svg>
+              </button>
+              <button class="ribbon-btn" id="btnAlignRight" title="오른쪽 정렬">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18v2H3V4zm6 5h12v2H9V9zm-6 5h18v2H3v-2zm6 5h12v2H9v-2z"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="ribbon-divider"></div>
+
+          <!-- Group 3: Number Formatting -->
+          <div class="ribbon-group" title="숫자 및 자릿수 서식">
+            <div class="ribbon-btn-group">
+              <button class="ribbon-btn" id="btnComma" title="자릿수 쉼표 (1,000단위 구분 기호)"><b>,</b></button>
+              <button class="ribbon-btn" id="btnPercent" title="백분율 스타일 (%)"><b>%</b></button>
+              <button class="ribbon-btn" id="btnIncreaseDec" title="자릿수 늘리기 (.0 → .00)">.00→</button>
+              <button class="ribbon-btn" id="btnDecreaseDec" title="자릿수 줄이기 (.00 → .0)">←.0</button>
+            </div>
+          </div>
+
+          <div class="ribbon-divider"></div>
+
+          <!-- Group 4: Sheet Actions -->
+          <div class="ribbon-group">
+            <button class="tool-btn" id="btnFillDown" title="선택 영역의 첫 행을 아래로 채웁니다 (단축키: Ctrl + D)">
+              <span>⬇️</span> 아래로 채우기
+            </button>
+            <button class="tool-btn" id="btnSampleData" title="공학 및 통계 예제 데이터를 불러옵니다">
+              <span>📋</span> 예제
+            </button>
+            <button class="tool-btn" id="btnClearSheet" title="모든 셀의 내용을 비웁니다">
+              <span>🧹</span> 초기화
+            </button>
+            <button class="tool-btn" id="btnExportCSV" title="현재 시트를 CSV 파일로 다운로드합니다">
+              <span>💾</span> CSV
+            </button>
+          </div>
         </div>
 
         <!-- Formula Bar -->

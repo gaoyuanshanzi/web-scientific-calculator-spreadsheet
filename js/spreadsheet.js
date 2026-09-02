@@ -46,6 +46,19 @@ class Spreadsheet {
     this.statSumSq = document.getElementById('statSumSq');
     this.statModeTag = document.getElementById('statModeTag');
 
+    // Ribbon DOM Elements
+    this.btnBold = document.getElementById('btnBold');
+    this.btnItalic = document.getElementById('btnItalic');
+    this.btnUnderline = document.getElementById('btnUnderline');
+    this.ribbonFontSize = document.getElementById('ribbonFontSize');
+    this.btnAlignLeft = document.getElementById('btnAlignLeft');
+    this.btnAlignCenter = document.getElementById('btnAlignCenter');
+    this.btnAlignRight = document.getElementById('btnAlignRight');
+    this.btnComma = document.getElementById('btnComma');
+    this.btnPercent = document.getElementById('btnPercent');
+    this.btnIncreaseDec = document.getElementById('btnIncreaseDec');
+    this.btnDecreaseDec = document.getElementById('btnDecreaseDec');
+
     this.initGrid();
     this.initEvents();
     this.updateRealtimeStats();
@@ -289,7 +302,7 @@ class Spreadsheet {
       }
     });
 
-    // Toolbar Buttons
+    // Toolbar / Fill Down Buttons
     const btnFillDown = document.getElementById('btnFillDown');
     if (btnFillDown) {
       btnFillDown.addEventListener('click', () => {
@@ -312,6 +325,41 @@ class Spreadsheet {
     if (btnExportCSV) {
       btnExportCSV.addEventListener('click', () => this.exportCSV());
     }
+
+    // Ribbon: Font Style Buttons
+    if (this.btnBold)       this.btnBold.addEventListener('click', () => this.applyFormatToRange('bold'));
+    if (this.btnItalic)     this.btnItalic.addEventListener('click', () => this.applyFormatToRange('italic'));
+    if (this.btnUnderline)  this.btnUnderline.addEventListener('click', () => this.applyFormatToRange('underline'));
+
+    // Ribbon: Alignment Buttons
+    if (this.btnAlignLeft)   this.btnAlignLeft.addEventListener('click', () => this.applyFormatToRange('align', 'left'));
+    if (this.btnAlignCenter) this.btnAlignCenter.addEventListener('click', () => this.applyFormatToRange('align', 'center'));
+    if (this.btnAlignRight)  this.btnAlignRight.addEventListener('click', () => this.applyFormatToRange('align', 'right'));
+
+    // Ribbon: Number Formatting Buttons
+    if (this.btnComma)       this.btnComma.addEventListener('click', () => this.applyFormatToRange('comma'));
+    if (this.btnPercent)     this.btnPercent.addEventListener('click', () => this.applyFormatToRange('percent'));
+    if (this.btnIncreaseDec) this.btnIncreaseDec.addEventListener('click', () => this.applyFormatToRange('incDec'));
+    if (this.btnDecreaseDec) this.btnDecreaseDec.addEventListener('click', () => this.applyFormatToRange('decDec'));
+
+    // Ribbon: Font Size
+    if (this.ribbonFontSize) {
+      this.ribbonFontSize.addEventListener('change', (e) => {
+        this.applyFormatToRange('fontSize', e.target.value);
+      });
+    }
+
+    // Keyboard Shortcuts for Ribbon (Ctrl+B, Ctrl+I, Ctrl+U)
+    window.addEventListener('keydown', (e) => {
+      if (window.activePanel !== 'sheet') return;
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (this.isEditing) return;
+      if (document.activeElement === this.formulaInput) return;
+
+      if (e.key === 'b' || e.key === 'B') { e.preventDefault(); this.applyFormatToRange('bold'); }
+      if (e.key === 'i' || e.key === 'I') { e.preventDefault(); this.applyFormatToRange('italic'); }
+      if (e.key === 'u' || e.key === 'U') { e.preventDefault(); this.applyFormatToRange('underline'); }
+    });
   }
 
   selectSingleCell(cellId, autoStartEdit = false) {
@@ -345,6 +393,7 @@ class Spreadsheet {
     if (this.formulaInput) this.formulaInput.value = this.getCellRaw(cellId);
 
     this.updateRealtimeStats();
+    this.updateRibbonState();
 
     // On mobile / user tap, immediately start in-cell edit so on-screen keyboard pops up
     if (autoStartEdit) {
@@ -401,6 +450,7 @@ class Spreadsheet {
     }
 
     this.updateRealtimeStats();
+    this.updateRibbonState();
   }
 
   clearSelectionStyles() {
@@ -700,7 +750,17 @@ class Spreadsheet {
     const td = document.getElementById(`cell_${cellId}`);
     if (!td || td.classList.contains('is-editing')) return;
 
+    const item = this.data[cellId];
     const val = this.getCellValue(cellId);
+    const fmt = item?.format || {};
+
+    // Apply text styles
+    td.style.fontWeight      = fmt.bold      ? 'bold'      : '';
+    td.style.fontStyle       = fmt.italic    ? 'italic'    : '';
+    td.style.textDecoration  = fmt.underline ? 'underline' : '';
+    td.style.textAlign       = fmt.align     || '';
+    td.style.fontSize        = fmt.fontSize  || '';
+
     if (val === null || val === undefined || val === '') {
       td.textContent = '';
       td.classList.remove('is-error', 'text-left');
@@ -708,13 +768,112 @@ class Spreadsheet {
       td.textContent = val;
       td.classList.add('is-error');
     } else if (typeof val === 'number') {
-      const formatted = Number.isInteger(val) ? val.toLocaleString() : (Math.abs(val) < 0.0001 && val !== 0 ? val.toExponential(4) : parseFloat(val.toFixed(4)).toLocaleString());
-      td.textContent = formatted;
+      td.textContent = this.formatNumber(val, fmt);
       td.classList.remove('is-error', 'text-left');
+      // Honor explicit alignment; default numbers right
+      if (!fmt.align) td.style.textAlign = 'right';
     } else {
       td.textContent = String(val);
       td.classList.remove('is-error');
       td.classList.add('text-left');
+      if (!fmt.align) td.style.textAlign = 'left';
+    }
+  }
+
+  formatNumber(num, fmt = {}) {
+    const isPercent = !!fmt.percent;
+    const useComma  = fmt.comma !== false; // default: comma ON for number cells
+    let decimals    = fmt.decimals;        // undefined = auto
+
+    let n = isPercent ? num * 100 : num;
+
+    if (decimals !== undefined) {
+      const fixed = n.toFixed(decimals);
+      if (useComma) {
+        const parts = fixed.split('.');
+        parts[0] = parseFloat(parts[0]).toLocaleString();
+        return parts.join('.') + (isPercent ? '%' : '');
+      }
+      return fixed + (isPercent ? '%' : '');
+    }
+
+    // Auto decimals
+    if (Number.isInteger(n)) {
+      return (useComma ? n.toLocaleString() : String(n)) + (isPercent ? '%' : '');
+    }
+    if (Math.abs(n) < 0.0001 && n !== 0) {
+      return n.toExponential(4) + (isPercent ? '%' : '');
+    }
+    const rounded = parseFloat(n.toFixed(4));
+    return (useComma ? rounded.toLocaleString() : String(rounded)) + (isPercent ? '%' : '');
+  }
+
+  applyFormatToRange(key, value) {
+    const minCol = Math.min(this.rangeStart.col, this.rangeEnd.col);
+    const maxCol = Math.max(this.rangeStart.col, this.rangeEnd.col);
+    const minRow = Math.min(this.rangeStart.row, this.rangeEnd.row);
+    const maxRow = Math.max(this.rangeStart.row, this.rangeEnd.row);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const cellId = `${this.colHeaders[c]}${r}`;
+        if (!this.data[cellId]) this.data[cellId] = { raw: '', val: null, format: {} };
+        if (!this.data[cellId].format) this.data[cellId].format = {};
+        const fmt = this.data[cellId].format;
+
+        // Toggle booleans; set fixed values for others
+        if (key === 'bold')      { fmt.bold      = !fmt.bold; }
+        else if (key === 'italic')    { fmt.italic    = !fmt.italic; }
+        else if (key === 'underline') { fmt.underline = !fmt.underline; }
+        else if (key === 'comma')     { fmt.comma     = !fmt.comma; }
+        else if (key === 'percent')   {
+          fmt.percent = !fmt.percent;
+          // When toggling percent on, default to 1 decimal if no decimals set
+          if (fmt.percent && fmt.decimals === undefined) fmt.decimals = 1;
+        }
+        else if (key === 'incDec') {
+          fmt.decimals = (fmt.decimals !== undefined ? fmt.decimals : 0) + 1;
+          fmt.comma = true;
+        }
+        else if (key === 'decDec') {
+          fmt.decimals = Math.max(0, (fmt.decimals !== undefined ? fmt.decimals : 0) - 1);
+        }
+        else if (key === 'align') {
+          // Toggle off if same alignment already
+          fmt.align = (fmt.align === value) ? '' : value;
+        }
+        else if (key === 'fontSize') {
+          fmt.fontSize = value;
+        }
+
+        this.renderCell(cellId);
+      }
+    }
+
+    this.updateRibbonState();
+  }
+
+  updateRibbonState() {
+    // Reflect the anchor cell's format in ribbon button active states
+    if (!this.selectedCell) return;
+    const fmt = this.data[this.selectedCell]?.format || {};
+
+    const toggle = (btn, condition) => {
+      if (!btn) return;
+      btn.classList.toggle('active', !!condition);
+    };
+
+    toggle(this.btnBold,        fmt.bold);
+    toggle(this.btnItalic,      fmt.italic);
+    toggle(this.btnUnderline,   fmt.underline);
+    toggle(this.btnComma,       fmt.comma);
+    toggle(this.btnPercent,     fmt.percent);
+    toggle(this.btnAlignLeft,   fmt.align === 'left');
+    toggle(this.btnAlignCenter, fmt.align === 'center');
+    toggle(this.btnAlignRight,  fmt.align === 'right');
+
+    if (this.ribbonFontSize && fmt.fontSize) {
+      this.ribbonFontSize.value = fmt.fontSize;
     }
   }
 
@@ -1081,6 +1240,7 @@ class Spreadsheet {
         if (td) {
           td.textContent = '';
           td.className = 'sheet-cell';
+          td.removeAttribute('style');
         }
       }
     }
