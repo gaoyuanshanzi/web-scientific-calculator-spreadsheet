@@ -175,6 +175,13 @@ class Spreadsheet {
       const key = e.key;
       const shift = e.shiftKey;
 
+      // Excel Ctrl + D (Fill Down / 아래로 채우기)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        this.fillDown();
+        return;
+      }
+
       if (key === 'ArrowUp') {
         e.preventDefault();
         this.moveSelection(-1, 0, shift);
@@ -204,6 +211,14 @@ class Spreadsheet {
     });
 
     // Toolbar Buttons
+    const btnFillDown = document.getElementById('btnFillDown');
+    if (btnFillDown) {
+      btnFillDown.addEventListener('click', () => {
+        if (this.isEditing) this.endEdit();
+        this.fillDown();
+      });
+    }
+
     const btnSampleData = document.getElementById('btnSampleData');
     if (btnSampleData) {
       btnSampleData.addEventListener('click', () => this.loadSampleData());
@@ -419,6 +434,14 @@ class Spreadsheet {
     });
 
     editor.addEventListener('keydown', (e) => {
+      // Excel Ctrl + D (Fill Down) inside active editor
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        commit(false);
+        this.fillDown();
+        return;
+      }
+
       if (e.key === 'Enter') {
         e.preventDefault();
         commit(true);
@@ -748,6 +771,80 @@ class Spreadsheet {
     if (this.statStdev) this.statStdev.textContent  = fmt(stdev);
     if (this.statSS)    this.statSS.textContent     = fmt(ss);
     if (this.statSumSq) this.statSumSq.textContent  = fmt(sumSq);
+  }
+
+  /**
+   * Excel Ctrl + D (Fill Down / 아래로 채우기)
+   * 1. If multiple rows are selected (minRow < maxRow):
+   *    Copies the top row's values/formulas down to all cells below in each selected column.
+   *    Formulas automatically adjust relative row references (e.g. =A1+B1 -> =A2+B2).
+   * 2. If a single row is selected (minRow === maxRow):
+   *    Copies the cell immediately above (row - 1) into the current cell.
+   */
+  fillDown() {
+    const minCol = Math.min(this.rangeStart.col, this.rangeEnd.col);
+    const maxCol = Math.max(this.rangeStart.col, this.rangeEnd.col);
+    const minRow = Math.min(this.rangeStart.row, this.rangeEnd.row);
+    const maxRow = Math.max(this.rangeStart.row, this.rangeEnd.row);
+
+    if (minRow < maxRow) {
+      // Case 1: Multi-row selection
+      for (let c = minCol; c <= maxCol; c++) {
+        const sourceCellId = `${this.colHeaders[c]}${minRow}`;
+        const sourceRaw = this.getCellRaw(sourceCellId);
+
+        for (let r = minRow + 1; r <= maxRow; r++) {
+          const targetCellId = `${this.colHeaders[c]}${r}`;
+          const rowOffset = r - minRow;
+          const adjustedVal = this.adjustFormulaRowOffset(sourceRaw, rowOffset);
+          this.setCellValue(targetCellId, adjustedVal, false);
+        }
+      }
+      this.recalculateAll();
+      const startId = `${this.colHeaders[minCol]}${minRow}`;
+      const endId = `${this.colHeaders[maxCol]}${maxRow}`;
+      this.showToast(`아래로 채우기(Ctrl+D) 완료: [${startId}:${endId}]`);
+    } else {
+      // Case 2: Single-row selection (copy from row above)
+      if (minRow > 1) {
+        for (let c = minCol; c <= maxCol; c++) {
+          const sourceCellId = `${this.colHeaders[c]}${minRow - 1}`;
+          const sourceRaw = this.getCellRaw(sourceCellId);
+          const targetCellId = `${this.colHeaders[c]}${minRow}`;
+          const adjustedVal = this.adjustFormulaRowOffset(sourceRaw, 1);
+          this.setCellValue(targetCellId, adjustedVal, false);
+        }
+        this.recalculateAll();
+        if (this.formulaInput && this.selectedCell) {
+          this.formulaInput.value = this.getCellRaw(this.selectedCell);
+        }
+        this.showToast(`위 셀 복사(Ctrl+D) 완료: ${this.selectedCell}`);
+      } else {
+        this.showToast('1행 위에는 복사할 셀이 없습니다.');
+      }
+    }
+  }
+
+  /**
+   * Adjust relative row references in formulas when filling down
+   * e.g. =A1*B1 with offset +1 -> =A2*B2
+   * $A$1 or A$1 (absolute row reference) remains unchanged
+   */
+  adjustFormulaRowOffset(raw, rowOffset) {
+    if (!raw || typeof raw !== 'string' || !raw.startsWith('=')) {
+      return raw;
+    }
+    return raw.replace(/(?<![A-Za-z0-9_])(\$?)([A-T])(\$?)(\d+)(?![A-Za-z0-9_])/gi, (match, colLock, colLetter, rowLock, rowStr) => {
+      if (rowLock === '$') {
+        return match;
+      }
+      const origRow = parseInt(rowStr, 10);
+      const newRow = origRow + rowOffset;
+      if (newRow >= 1 && newRow <= this.rowsCount) {
+        return `${colLock}${colLetter.toUpperCase()}${rowLock}${newRow}`;
+      }
+      return match;
+    });
   }
 
   loadSampleData() {
