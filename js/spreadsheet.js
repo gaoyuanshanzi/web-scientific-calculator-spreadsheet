@@ -1,5 +1,5 @@
 /**
- * 20x20 Spreadsheet Grid & Excel-Compatible Formula Engine
+ * 20×50 Spreadsheet Grid & Excel-Compatible Formula Engine
  * - Light Mode
  * - Immediate In-Cell Editing & Mobile Virtual Keyboard Popup on Tap
  * - Multi-Cell Block Selection (Shift + Click, Shift + Arrows, Mouse Drag)
@@ -8,8 +8,8 @@
  */
 
 class Spreadsheet {
-  constructor(rows = 20, cols = 20) {
-    this.rowsCount = rows; // 1 to 20
+  constructor(rows = 50, cols = 20) {
+    this.rowsCount = rows; // 1 to 50
     this.colsCount = cols; // A to T (20 cols)
     this.colHeaders = [];
     for (let i = 0; i < this.colsCount; i++) {
@@ -33,6 +33,10 @@ class Spreadsheet {
     this.statSum = document.getElementById('statSum');
     this.statAvg = document.getElementById('statAvg');
     this.statCount = document.getElementById('statCount');
+    this.statVar = document.getElementById('statVar');
+    this.statStdev = document.getElementById('statStdev');
+    this.statSS = document.getElementById('statSS');
+    this.statSumSq = document.getElementById('statSumSq');
     this.statModeTag = document.getElementById('statModeTag');
 
     this.initGrid();
@@ -428,6 +432,28 @@ class Spreadsheet {
         e.preventDefault();
         commit(false);
         this.moveSelection(0, e.shiftKey ? -1 : 1, false);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        commit(false);
+        this.moveSelection(-1, 0, false);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        commit(false);
+        this.moveSelection(1, 0, false);
+      } else if (e.key === 'ArrowLeft') {
+        // Only navigate if cursor is at the start of the text
+        if (editor.selectionStart === 0 && editor.selectionEnd === 0) {
+          e.preventDefault();
+          commit(false);
+          this.moveSelection(0, -1, false);
+        }
+      } else if (e.key === 'ArrowRight') {
+        // Only navigate if cursor is at the end of the text
+        if (editor.selectionStart === editor.value.length && editor.selectionEnd === editor.value.length) {
+          e.preventDefault();
+          commit(false);
+          this.moveSelection(0, 1, false);
+        }
       }
     });
   }
@@ -660,11 +686,10 @@ class Spreadsheet {
   /**
    * Real-time Statistics Calculation:
    * - If a multi-cell block is selected: calculates for that selection range!
-   * - If 1 cell is selected: calculates for all populated numbers in the entire 20x20 sheet!
+   * - If 1 cell is selected: calculates for all populated numbers in the entire sheet!
    */
   updateRealtimeStats() {
-    let sum = 0;
-    let count = 0;
+    const values = [];
 
     const minCol = Math.min(this.rangeStart.col, this.rangeEnd.col);
     const maxCol = Math.max(this.rangeStart.col, this.rangeEnd.col);
@@ -679,8 +704,7 @@ class Spreadsheet {
           const cellId = `${this.colHeaders[c]}${r}`;
           const item = this.data[cellId];
           if (item && typeof item.val === 'number' && !isNaN(item.val) && isFinite(item.val)) {
-            sum += item.val;
-            count++;
+            values.push(item.val);
           }
         }
       }
@@ -695,27 +719,35 @@ class Spreadsheet {
           const cellId = `${this.colHeaders[c]}${r}`;
           const item = this.data[cellId];
           if (item && typeof item.val === 'number' && !isNaN(item.val) && isFinite(item.val)) {
-            sum += item.val;
-            count++;
+            values.push(item.val);
           }
         }
       }
       if (this.statModeTag) {
-        this.statModeTag.textContent = `⚡ 전체 20×20 바둑판 통계`;
+        this.statModeTag.textContent = `⚡ 전체 20×50 통계`;
       }
     }
 
-    const avg = count > 0 ? (sum / count) : 0;
+    const count = values.length;
+    const sum = count > 0 ? values.reduce((a, b) => a + b, 0) : 0;
+    const avg = count > 0 ? sum / count : 0;
+    const sumSq = count > 0 ? values.reduce((a, b) => a + b * b, 0) : 0;
+    const ss = count > 0 ? values.reduce((a, b) => a + Math.pow(b - avg, 2), 0) : 0; // 편차제곱합
+    const variance = count > 0 ? ss / count : 0;
+    const stdev = Math.sqrt(variance);
 
-    if (this.statSum) {
-      this.statSum.textContent = Number.isInteger(sum) ? sum.toLocaleString() : parseFloat(sum.toFixed(4)).toLocaleString();
-    }
-    if (this.statAvg) {
-      this.statAvg.textContent = count > 0 ? (Number.isInteger(avg) ? avg.toLocaleString() : parseFloat(avg.toFixed(4)).toLocaleString()) : '0';
-    }
-    if (this.statCount) {
-      this.statCount.textContent = count.toLocaleString();
-    }
+    const fmt = (v) => {
+      if (count === 0) return '0';
+      return Number.isInteger(v) ? v.toLocaleString() : parseFloat(v.toFixed(4)).toLocaleString();
+    };
+
+    if (this.statSum)   this.statSum.textContent   = fmt(sum);
+    if (this.statAvg)   this.statAvg.textContent   = fmt(avg);
+    if (this.statCount) this.statCount.textContent  = count.toLocaleString();
+    if (this.statVar)   this.statVar.textContent    = fmt(variance);
+    if (this.statStdev) this.statStdev.textContent  = fmt(stdev);
+    if (this.statSS)    this.statSS.textContent     = fmt(ss);
+    if (this.statSumSq) this.statSumSq.textContent  = fmt(sumSq);
   }
 
   loadSampleData() {

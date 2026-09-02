@@ -272,9 +272,9 @@
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   background: #ffffff;
-  padding: 6px 14px;
+  padding: 5px 10px;
   border-radius: var(--radius-md);
   border: 1px solid #cbd5e1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -304,6 +304,26 @@
 .stat-icon.cnt-icon {
   background: #fef3c7;
   color: #b45309;
+}
+
+.stat-icon.var-icon {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.stat-icon.std-icon {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.stat-icon.ss-icon {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.stat-icon.sq-icon {
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 .stat-text {
