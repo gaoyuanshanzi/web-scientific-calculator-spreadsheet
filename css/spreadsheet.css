@@ -221,6 +221,14 @@
   z-index: 8;
 }
 
+/* Excel Formula Reference Picking Highlight (Dashed Blue Border) */
+.sheet-cell.is-formula-ref {
+  background: rgba(37, 99, 235, 0.15) !important;
+  outline: 2px dashed #2563eb !important;
+  outline-offset: -2px;
+  z-index: 7;
+}
+
 .cell-editor {
   width: 100%;
   height: 100%;

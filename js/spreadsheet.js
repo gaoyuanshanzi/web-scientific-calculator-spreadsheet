@@ -26,6 +26,13 @@ class Spreadsheet {
     this.isEditing = false;
     this.editingCellId = null;
 
+    // Formula Cell Pointing & Range Picking State (Excel-like formula cell selection)
+    this.isPickingFormula = false;
+    this.formulaRefStart = null;
+    this.formulaRefEnd = null;
+    this.pickingState = null;
+    this.pointCell = null;
+
     // DOM Elements
     this.gridWrapper = document.getElementById('sheetGridWrapper');
     this.activeCellLabel = document.getElementById('activeCellBox');
@@ -75,7 +82,7 @@ class Spreadsheet {
     const table = document.getElementById('sheetTable');
     if (!table) return;
 
-    // Cell Click / Touch Handler (Immediate focus for mobile virtual keyboard)
+    // Cell Click / Touch Handler
     table.addEventListener('click', (e) => {
       if (window.setActivePanel) window.setActivePanel('sheet');
 
@@ -85,6 +92,15 @@ class Spreadsheet {
       const col = parseInt(td.dataset.col, 10);
       const row = parseInt(td.dataset.row, 10);
       const cellId = td.dataset.cell;
+
+      const activeEd = document.querySelector('.cell-editor');
+      const isFormulaMode = (this.isEditing && activeEd && activeEd.value.startsWith('=')) ||
+                            (document.activeElement === this.formulaInput && this.formulaInput.value.startsWith('='));
+
+      // If in formula mode and clicked another cell, picking was handled by mousedown
+      if (isFormulaMode && this.editingCellId !== cellId) {
+        return;
+      }
 
       if (e.shiftKey) {
         // Shift + Click: Block Range Selection
@@ -99,25 +115,64 @@ class Spreadsheet {
       }
     });
 
-    // Mouse Drag Selection (Desktop)
+    // Mouse Drag Selection / Formula Cell Pointing
     table.addEventListener('mousedown', (e) => {
       if (e.shiftKey) return;
       const td = e.target.closest('.sheet-cell');
-      if (!td || e.target.classList.contains('cell-editor')) return;
+      if (!td) return;
 
       const col = parseInt(td.dataset.col, 10);
       const row = parseInt(td.dataset.row, 10);
+      const cellId = td.dataset.cell;
+
+      const activeEd = document.querySelector('.cell-editor');
+      const isFormulaMode = (this.isEditing && activeEd && activeEd.value.startsWith('=')) ||
+                            (document.activeElement === this.formulaInput && this.formulaInput.value.startsWith('='));
+
+      if (isFormulaMode) {
+        // If clicking inside the current cell being edited, let user position text cursor
+        if (e.target.classList.contains('cell-editor') && this.editingCellId === cellId) {
+          return;
+        }
+
+        e.preventDefault(); // Keep focus in editor
+        this.isPickingFormula = true;
+        this.formulaRefStart = { col, row };
+        this.formulaRefEnd = { col, row };
+        this.insertOrUpdateFormulaRef(cellId);
+        this.highlightFormulaRange(col, col, row, row);
+        return;
+      }
+
+      if (e.target.classList.contains('cell-editor')) return;
+
       this.isSelecting = true;
       this.rangeStart = { col, row };
       this.rangeEnd = { col, row };
     });
 
     table.addEventListener('mouseover', (e) => {
-      if (!this.isSelecting) return;
       const td = e.target.closest('.sheet-cell');
-      if (td) {
-        const col = parseInt(td.dataset.col, 10);
-        const row = parseInt(td.dataset.row, 10);
+      if (!td) return;
+
+      const col = parseInt(td.dataset.col, 10);
+      const row = parseInt(td.dataset.row, 10);
+
+      if (this.isPickingFormula) {
+        this.formulaRefEnd = { col, row };
+        const minC = Math.min(this.formulaRefStart.col, this.formulaRefEnd.col);
+        const maxC = Math.max(this.formulaRefStart.col, this.formulaRefEnd.col);
+        const minR = Math.min(this.formulaRefStart.row, this.formulaRefEnd.row);
+        const maxR = Math.max(this.formulaRefStart.row, this.formulaRefEnd.row);
+        const startId = `${this.colHeaders[minC]}${minR}`;
+        const endId = `${this.colHeaders[maxC]}${maxR}`;
+        const refStr = (startId === endId) ? startId : `${startId}:${endId}`;
+        this.insertOrUpdateFormulaRef(refStr);
+        this.highlightFormulaRange(minC, maxC, minR, maxR);
+        return;
+      }
+
+      if (this.isSelecting) {
         this.rangeEnd = { col, row };
         if (this.isEditing) this.endEdit();
         this.applyRangeSelection();
@@ -125,6 +180,11 @@ class Spreadsheet {
     });
 
     window.addEventListener('mouseup', () => {
+      if (this.isPickingFormula) {
+        this.isPickingFormula = false;
+        const ed = document.querySelector('.cell-editor') || this.formulaInput;
+        if (ed) ed.focus();
+      }
       if (this.isSelecting) {
         this.isSelecting = false;
       }
@@ -414,12 +474,19 @@ class Spreadsheet {
       if (this.formulaInput) {
         this.formulaInput.value = e.target.value;
       }
+      if (!this.isPickingFormula) {
+        this.pointCell = null;
+        this.clearFormulaRefHighlights();
+      }
     });
 
     const commit = (shouldMove = false) => {
       const val = editor.value;
       this.isEditing = false;
       this.editingCellId = null;
+      this.pickingState = null;
+      this.pointCell = null;
+      this.clearFormulaRefHighlights();
       td.classList.remove('is-editing');
       this.setCellValue(cellId, val, true);
       if (shouldMove) {
@@ -428,12 +495,20 @@ class Spreadsheet {
     };
 
     editor.addEventListener('blur', () => {
+      if (this.isPickingFormula) return;
       if (this.isEditing && this.editingCellId === cellId) {
         commit(false);
       }
     });
 
     editor.addEventListener('keydown', (e) => {
+      // If typing an operator while in formula, reset picking state so next click inserts new reference
+      if (['+', '-', '*', '/', '^', '(', ')', ',', ':'].includes(e.key)) {
+        this.pickingState = null;
+        this.pointCell = null;
+        this.clearFormulaRefHighlights();
+      }
+
       // Excel Ctrl + D (Fill Down) inside active editor
       if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault();
@@ -445,17 +520,53 @@ class Spreadsheet {
       if (e.key === 'Enter') {
         e.preventDefault();
         commit(true);
+        return;
       } else if (e.key === 'Escape') {
         e.preventDefault();
         this.isEditing = false;
         this.editingCellId = null;
+        this.pickingState = null;
+        this.pointCell = null;
+        this.clearFormulaRefHighlights();
         td.classList.remove('is-editing');
         this.renderCell(cellId);
+        return;
       } else if (e.key === 'Tab') {
         e.preventDefault();
         commit(false);
         this.moveSelection(0, e.shiftKey ? -1 : 1, false);
-      } else if (e.key === 'ArrowUp') {
+        return;
+      }
+
+      // Check for Excel Point Mode with Arrow Keys
+      const val = editor.value;
+      const isFormula = val.startsWith('=');
+      const cursorPos = editor.selectionStart;
+      const charBeforeCursor = cursorPos > 0 ? val.charAt(cursorPos - 1) : '';
+      const isAfterOperator = /[=+\-*/^,:(]/.test(charBeforeCursor);
+
+      if (isFormula && (this.pointCell || isAfterOperator) && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        
+        if (!this.pointCell) {
+          const editColChar = cellId.charAt(0);
+          const editRowNum = parseInt(cellId.slice(1), 10);
+          const editColIdx = this.colHeaders.indexOf(editColChar);
+          this.pointCell = { col: editColIdx, row: editRowNum };
+        }
+
+        if (e.key === 'ArrowUp') this.pointCell.row = Math.max(1, this.pointCell.row - 1);
+        if (e.key === 'ArrowDown') this.pointCell.row = Math.min(this.rowsCount, this.pointCell.row + 1);
+        if (e.key === 'ArrowLeft') this.pointCell.col = Math.max(0, this.pointCell.col - 1);
+        if (e.key === 'ArrowRight') this.pointCell.col = Math.min(this.colsCount - 1, this.pointCell.col + 1);
+
+        const targetCellId = `${this.colHeaders[this.pointCell.col]}${this.pointCell.row}`;
+        this.insertOrUpdateFormulaRef(targetCellId);
+        this.highlightFormulaRange(this.pointCell.col, this.pointCell.col, this.pointCell.row, this.pointCell.row);
+        return;
+      }
+
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
         commit(false);
         this.moveSelection(-1, 0, false);
@@ -486,6 +597,9 @@ class Spreadsheet {
     this.isEditing = false;
     const editingId = this.editingCellId;
     this.editingCellId = null;
+    this.pickingState = null;
+    this.pointCell = null;
+    this.clearFormulaRefHighlights();
 
     document.querySelectorAll('.cell-editor').forEach(ed => {
       const td = ed.closest('.sheet-cell');
@@ -845,6 +959,63 @@ class Spreadsheet {
       }
       return match;
     });
+  }
+
+  /**
+   * Excel Formula Reference Insertion & Updating:
+   * Inserts or replaces a referenced cell/range at the current formula insertion point
+   */
+  insertOrUpdateFormulaRef(refStr) {
+    const editor = document.querySelector('.cell-editor') || this.formulaInput;
+    if (!editor) return;
+
+    const text = editor.value;
+    if (!this.pickingState) {
+      const start = editor.selectionStart !== null ? Math.min(editor.selectionStart, text.length) : text.length;
+      const end = editor.selectionEnd !== null ? Math.min(editor.selectionEnd, text.length) : text.length;
+      this.pickingState = {
+        startPos: start,
+        refLength: refStr.length
+      };
+      const before = text.substring(0, start);
+      const after = text.substring(end);
+      editor.value = before + refStr + after;
+      editor.selectionStart = editor.selectionEnd = start + refStr.length;
+    } else {
+      const start = this.pickingState.startPos;
+      const oldLen = this.pickingState.refLength;
+      const before = text.substring(0, start);
+      const after = text.substring(start + oldLen);
+      editor.value = before + refStr + after;
+      this.pickingState.refLength = refStr.length;
+      editor.selectionStart = editor.selectionEnd = start + refStr.length;
+    }
+
+    if (this.editingCellId) {
+      this.setCellValue(this.editingCellId, editor.value, false);
+    }
+    if (this.formulaInput && editor !== this.formulaInput) {
+      this.formulaInput.value = editor.value;
+    }
+  }
+
+  clearFormulaRefHighlights() {
+    document.querySelectorAll('.sheet-cell.is-formula-ref').forEach(el => {
+      el.classList.remove('is-formula-ref');
+    });
+  }
+
+  highlightFormulaRange(minCol, maxCol, minRow, maxRow) {
+    this.clearFormulaRefHighlights();
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const id = `${this.colHeaders[c]}${r}`;
+        const td = document.getElementById(`cell_${id}`);
+        if (td) {
+          td.classList.add('is-formula-ref');
+        }
+      }
+    }
   }
 
   loadSampleData() {
