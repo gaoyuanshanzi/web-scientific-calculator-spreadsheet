@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize Components
   window.calculatorInstance = new ScientificCalculator();
-  window.spreadsheetInstance = new Spreadsheet(20, 20);
+  window.spreadsheetInstance = new Spreadsheet(50, 20);
 
   // Set initial active state
   window.setActivePanel('calc');
